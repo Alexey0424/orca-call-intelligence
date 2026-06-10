@@ -861,15 +861,6 @@ def metrics_endpoint() -> Response:
                     media_type="text/plain; version=0.0.4")
 
 
-# ── Live resource snapshot (control-panel summary box) ───────────────────────
-@app.get("/resources")
-def resources_endpoint() -> Dict[str, Any]:
-    """Live instantaneous GPU/CPU/RAM as rel/global/other %, for the control
-    panel's summary box. Cheap + lock-free (no _GPU_LOCK) so it stays
-    responsive while a /scorecard holds the GPU."""
-    return {"ok": True, **resource_sampler.snapshot()}
-
-
 # ── Chat-grade transcription (voice input for chat front-ends) ───────────────
 @app.post("/transcribe")
 async def transcribe_endpoint(

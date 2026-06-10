@@ -89,16 +89,6 @@ def test_resource_triple_computes_difference():
     assert rs._triple(None, 62.0) == {"rel": None, "glob": 62.0, "other": None}
 
 
-def test_resource_snapshot_shape_never_raises():
-    from pipeline import resource_sampler as rs
-    snap = rs.snapshot()
-    assert set(snap) == {"gpu", "vram", "cpu", "ram"}
-    for k in snap:
-        # Every section carries the rel/glob/other triple; `ram` adds
-        # used_gb/total_gb for the control-UI summary box.
-        assert {"rel", "glob", "other"} <= set(snap[k])
-
-
 def test_resource_track_returns_peaks_dict():
     from pipeline import resource_sampler as rs
     with rs.track() as tr:

@@ -88,62 +88,10 @@ def _pct(used: float, total: float) -> Optional[float]:
     return round(max(0.0, min(100.0, used / total * 100.0)), 1)
 
 
-def _gb(num_bytes: float) -> Optional[float]:
-    """Bytes → GiB, 1-dp. None if not a usable number."""
-    try:
-        return round(num_bytes / (1024 ** 3), 1)
-    except Exception:  # noqa: BLE001
-        return None
-
-
 def _triple(rel: Optional[float], glob: Optional[float]) -> Triple:
     other = (round(glob - rel, 1)
              if rel is not None and glob is not None else None)
     return {"rel": rel, "glob": glob, "other": other}
-
-
-def snapshot() -> Peaks:
-    """Instantaneous global/rel/other for vram/cpu/ram, as %. Served by
-    GET /resources and used for the live summary box."""
-    # VRAM
-    vram_rel = vram_glob = None
-    if _HAS_GPU and _GPU_TOTAL:
-        try:
-            free, total = torch.cuda.mem_get_info()
-            vram_glob = _pct(total - free, total)
-            vram_rel = _pct(torch.cuda.memory_allocated(), total)
-        except Exception:  # noqa: BLE001
-            pass
-    # CPU (percent since the previous call)
-    cpu_rel = cpu_glob = None
-    try:
-        cpu_glob = round(psutil.cpu_percent(interval=None), 1)
-        cpu_rel = round(_PROC.cpu_percent(interval=None) / _NCPU, 1)
-    except Exception:  # noqa: BLE001
-        pass
-    # RAM. NB: inside the container psutil reads the WSL2 VM's /proc/meminfo
-    # (not cgroup-namespaced), so this is the whole Linux box, % of the WSL2
-    # memory allocation — used_gb/total_gb make that ceiling explicit in the UI.
-    ram_rel = ram_glob = None
-    ram_used_gb = ram_total_gb = None
-    try:
-        vm = psutil.virtual_memory()
-        ram_glob = round(vm.percent, 1)
-        ram_rel = _pct(_PROC.memory_info().rss, _RAM_TOTAL)
-        ram_used_gb = _gb(vm.used)
-        ram_total_gb = _gb(vm.total)
-    except Exception:  # noqa: BLE001
-        pass
-    # GPU compute utilization — whole card, global-only.
-    gpu_u = _gpu_util()
-    gpu_u = round(gpu_u, 1) if gpu_u is not None else None
-    ram = _triple(ram_rel, ram_glob)
-    ram["used_gb"] = ram_used_gb
-    ram["total_gb"] = ram_total_gb
-    return {"gpu":  _triple(None, gpu_u),
-            "vram": _triple(vram_rel, vram_glob),
-            "cpu":  _triple(cpu_rel, cpu_glob),
-            "ram":  ram}
 
 
 class _Tracker:
