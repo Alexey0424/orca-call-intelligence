@@ -125,15 +125,15 @@ NER_THRESHOLD        = float(os.getenv("NER_THRESHOLD", "0.45"))
 
 
 # ── LLM (KPI extraction + coaching rubric, Ollama) ───────────────────────────
-# Default: Qwen 2.5-14B Instruct at Q4_K_M. Strong Spanish + best-in-class
-# JSON adherence among local open models. Drop ``think`` mode entirely;
-# Qwen 2.5 instruct does not use it and gemma-style thinking caused the
-# JSON-leak issues we hit on the prior model.
+# Default: gemma4:e4b (~9.6 GB) — fits a 16 GB card alongside the audio
+# models. It is a reasoning model: kpis.py / coaching.py pin ``think: false``
+# (thinking burned ~200 s/call on scratch tokens for identical JSON) and keep
+# a content→thinking fallback when parsing. Both are required — don't remove.
 # (OLLAMA_HOST is re-exported from ragcore.config above.)
 # Module-level default — for snapshots / logs / metadata. Pipeline code
 # that calls Ollama should use ``llm_model_id()`` so runtime swaps from
-# the control UI take effect without restarting ser-api.
-LLM_MODEL_ID         = _resolve("LLM_MODEL_ID", "qwen2.5:14b-instruct-q4_K_M")
+# the control UI take effect without restarting the service.
+LLM_MODEL_ID         = _resolve("LLM_MODEL_ID", "gemma4:e4b")
 LLM_TIMEOUT_SEC      = float(os.getenv("LLM_TIMEOUT_SEC",  "180"))
 LLM_NUM_CTX          = int(os.getenv("LLM_NUM_CTX",        "16384"))
 LLM_NUM_PREDICT      = int(os.getenv("LLM_NUM_PREDICT",     "4096"))
@@ -141,7 +141,7 @@ LLM_NUM_PREDICT      = int(os.getenv("LLM_NUM_PREDICT",     "4096"))
 
 def llm_model_id() -> str:
     """Resolve the LLM model id at call time. Honours runtime overrides."""
-    return _runtime_get("LLM_MODEL_ID", "qwen2.5:14b-instruct-q4_K_M")
+    return _runtime_get("LLM_MODEL_ID", "gemma4:e4b")
 
 
 # ── Opening-of-call LLM speaker→role relabel (pipeline/opening_relabel.py) ────

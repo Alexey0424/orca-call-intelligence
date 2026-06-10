@@ -1,4 +1,4 @@
-"""Per-utterance text sentiment (XLM-RoBERTa multilingual) + aggregation.
+"""Per-utterance text sentiment (Twitter RoBERTa, English) + aggregation.
 
 Output per utterance (added in place):
     sentiment_label  ∈ {"positive", "neutral", "negative"}

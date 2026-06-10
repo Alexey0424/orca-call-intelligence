@@ -1,4 +1,4 @@
-"""Multilingual sentiment classifier (XLM-RoBERTa, 3-class).
+"""English sentiment classifier (Twitter RoBERTa, 3-class).
 
 ``load(model_id=None)`` accepts an explicit override so the hot-swap
 registry can request a different classifier at runtime.

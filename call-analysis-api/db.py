@@ -87,7 +87,7 @@ def _ddl() -> str:
         coaching_breakdown   JSONB,
         coaching_notes       TEXT,
 
-        -- Per-speaker text sentiment (XLM-RoBERTa)
+        -- Per-speaker text sentiment (RoBERTa)
         closer_sentiment_mean        REAL,
         closer_sentiment_trajectory  TEXT,
         client_sentiment_mean        REAL,

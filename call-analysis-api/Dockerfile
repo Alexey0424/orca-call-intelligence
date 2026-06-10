@@ -101,9 +101,9 @@ try:
 except Exception as e:
     print(f"  Whisper base WARN: {e}")
 
-# ── pyannote community-1 diarizer (A/B alternative to 3.1) ───────────────────
+# ── pyannote 3.1 diarizer (the deployed pipeline's diarization model) ────────
 if tok:
-    mid = "pyannote/speaker-diarization-community-1"
+    mid = "pyannote/speaker-diarization-3.1"
     print(f"Downloading {mid} …")
     try:
         from pyannote.audio import Pipeline
@@ -114,16 +114,16 @@ if tok:
 else:
     print("  pyannote models SKIP (no HF_TOKEN provided)")
 
-# ── XLM-RoBERTa multilingual sentiment ────────────────────────────────────────
-print("Downloading XLM-R sentiment …")
+# ── English RoBERTa sentiment (3-class) ───────────────────────────────────────
+print("Downloading RoBERTa sentiment …")
 try:
     from transformers import AutoTokenizer, AutoModelForSequenceClassification
-    mid = "cardiffnlp/twitter-xlm-roberta-base-sentiment"
+    mid = "cardiffnlp/twitter-roberta-base-sentiment-latest"
     AutoTokenizer.from_pretrained(mid, **kw)
     AutoModelForSequenceClassification.from_pretrained(mid, **kw)
-    print("  XLM-R sentiment OK")
+    print("  RoBERTa sentiment OK")
 except Exception as e:
-    print(f"  XLM-R sentiment WARN: {e}")
+    print(f"  RoBERTa sentiment WARN: {e}")
 
 # ── emotion2vec+ large (SER) ──────────────────────────────────────────────────
 print("Downloading emotion2vec+ large …")
@@ -167,8 +167,8 @@ EXPOSE 8000
 # ── Runtime env defaults (all overridable in docker-compose / .env) ──────────
 ENV WHISPER_MODEL_ID=base \
     WHISPER_COMPUTE=float16 \
-    DIARIZATION_MODEL_ID=pyannote/speaker-diarization-community-1 \
-    SENTIMENT_MODEL_ID=cardiffnlp/twitter-xlm-roberta-base-sentiment \
+    DIARIZATION_MODEL_ID=pyannote/speaker-diarization-3.1 \
+    SENTIMENT_MODEL_ID=cardiffnlp/twitter-roberta-base-sentiment-latest \
     SENTIMENT_BATCH_SIZE=32 \
     SER_MODEL_ID=iic/emotion2vec_plus_large \
     SER_BATCH_SIZE=8 \

@@ -1,4 +1,4 @@
-"""Pyannote diarization pipeline loader (community-1).
+"""Pyannote diarization pipeline loader (speaker-diarization-3.1).
 
 ``load(model_id=None)`` accepts an explicit override so the hot-swap
 registry can request a different pipeline at runtime.

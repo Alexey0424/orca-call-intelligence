@@ -89,8 +89,8 @@ x-init-ollama: &init-ollama
     # fits a 16 GB card alongside the audio pipeline.
     - LLM_MODEL_ID=${LLM_MODEL_ID:-gemma4:e4b}
     # Speaker→role opening relabel (research winner for that task; the KPI
-    # model is the in-code fallback). Set OPENING_RELABEL_MODEL to the same
-    # value as LLM_MODEL_ID in .env to skip this ~9 GB pull.
+    # model is the in-code fallback) AND the bundled n8n chat agent's model
+    # (gemma4's reasoning mode breaks n8n's Tools Agent). Required.
     - OPENING_RELABEL_MODEL=${OPENING_RELABEL_MODEL:-qwen2.5:14b-instruct-q4_K_M}
     # Embeddings: Qwen3-Embedding-4B trained with Matryoshka. The services
     # take the leading 1024 dims and re-normalise client-side (native 2560).

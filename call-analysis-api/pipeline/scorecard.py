@@ -3,7 +3,7 @@
     audio  →  ASR (Whisper-base, English-only)
            →  diarize
            →  reconcile (words → utterances)
-           →  text sentiment (XLM-R)
+           →  text sentiment (RoBERTa)
            →  speech emotion (emotion2vec+, VAD)
            →  prosody (eGeMAPS)
            →  text metrics (regex bilingual counts)
