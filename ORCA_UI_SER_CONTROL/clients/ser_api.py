@@ -195,15 +195,3 @@ def delete_call(call_id: str, purge_files: bool = True) -> Dict[str, Any]:
         return {"ok": False, "error": repr(exc)}
 
 
-def resources() -> Dict[str, Any]:
-    """GET /resources — live rel/global/other GPU/CPU/RAM snapshot for the
-    control-panel summary box. Short timeout + empty dict on failure so a
-    slow/busy ser-api never stalls the HTMX poll."""
-    try:
-        with httpx.Client(base_url=config.SER_API_URL, timeout=3.0) as c:
-            r = c.get("/resources")
-            r.raise_for_status()
-            return r.json()
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("ser_api_resources_failed err=%r", exc)
-        return {}

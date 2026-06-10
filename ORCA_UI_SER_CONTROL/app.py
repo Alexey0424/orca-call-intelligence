@@ -473,14 +473,6 @@ def control_panel_partial(request: Request,
     )
 
 
-# Live resource snapshot as JSON — fed to the control-panel curve graphs.
-# Thin proxy over ser_api.resources() (3s timeout, {} on failure) so the
-# browser's ~1s poll loop never blocks on a GPU-busy ser-api.
-@app.get("/resources.json")
-def resources_json():
-    return JSONResponse(ser_api.resources())
-
-
 # ── Actions ────────────────────────────────────────────────────────────────
 @app.post("/control/trigger")
 def trigger_pipeline():

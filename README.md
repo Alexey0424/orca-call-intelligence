@@ -124,7 +124,7 @@ No GPU? `docker compose --profile cpu up -d` works — every model falls back to
 |---|---|
 | ![Report](docs/img/report.png) | ![Control UI](docs/img/control-ui.png) |
 
-Left: the on-demand executive report — verdict, coaching notes, conversation dynamics, all charts pure SVG so the PDF stays vector. Right: the control center after a run — live GPU/VRAM/CPU/RAM strips and per-stage resource peaks recorded into `pipeline_runs`.
+Left: the on-demand executive report — verdict, coaching notes, conversation dynamics, all charts pure SVG so the PDF stays vector. Right: the control center after a run — per-stage / per-model GPU/VRAM/CPU/RAM peaks recorded into `pipeline_runs`.
 
 ## What one call turns into
 

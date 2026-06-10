@@ -83,10 +83,6 @@
   <span><strong class="text-ink">Drop an audio file anywhere</strong> to start a scorecard run, or click the button above.</span>
 </div>
 
-<!-- Live resource curves — persistent (NOT inside the 2s-swapped panel div)
-     so the client-side sample history survives across polls. -->
-{% include "partials/_resource_graphs.html" %}
-
 <!-- The CONTROL PANEL itself — polled by HTMX every 2s when current,
      once-loaded when history. -->
 <div hx-get="/_partial/control-panel?mode={{ mode }}{% if selected_run %}&run={{ selected_run }}{% endif %}"
