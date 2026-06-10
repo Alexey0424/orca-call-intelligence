@@ -1,0 +1,354 @@
+{
+  "id": "WUEyKbTJmT8D7wSr",
+  "name": "ORCA - SER Ingestion + RAG Chat",
+  "active": false,
+  "isArchived": false,
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## Try it in 3 steps\n\n**1.** Drop one or more call recordings into the repo's `./audio/` folder (any common format - mp3, wav, m4a, ogg...).\n\n**2.** Open the *ingestion* path below and click **Execute workflow**. Each file runs through the full GPU pipeline (expect a few minutes per call on first run while models warm up).\n\n**3.** Open the **Chat** panel on the *chat* path and ask things like:\n- \"what calls do we have?\"\n- \"show me the dashboard\"\n- \"did any client push back on price?\"\n- \"give me the report for call <call_id>\"",
+        "height": 408,
+        "width": 380,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [288, -464],
+      "id": "0a0a0a0a-1111-2222-3333-444444444444",
+      "name": "Sticky Note Demo"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [736, -240],
+      "id": "4dd08efa-bbec-4a10-a57c-621271ad94e3",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "fileSelector": "/home/node/.n8n-files/audio/*.{mp3,wav,m4a,ogg,flac,mp4,aac,opus,webm}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1.1,
+      "position": [960, -240],
+      "id": "29e78a20-a189-4107-9469-73b7cacf0867",
+      "name": "Read/Write Files from Disk"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://call-analysis-api:8000/scorecard?persist=true&index_utterances=true",
+        "sendQuery": true,
+        "specifyQuery": "json",
+        "jsonQuery": "{\n  \"language\": \"en\",\n  \"num_speakers\": 2,\n  \"closer_speaker\": \"SPEAKER_01\",\n  \"include_audio_features\": true,\n  \"include_utterances\": true\n}",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 1800000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [1152, -240],
+      "id": "d2b7dd3b-0a14-44ee-82d9-157f28e45e32",
+      "name": "Analyze call (call-analysis-api /scorecard)"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [1424, -224],
+      "id": "2f450287-54f2-4440-8376-34f07e999b67",
+      "name": "When chat message received",
+      "webhookId": "44b59b52-d8e4-47c9-a3ad-3d6f4078017c"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "You are a call-analysis assistant for processed sales calls.\n\nTools available (pick the right one):\n1. recent_calls — most recent calls, ordered newest first. Use for \"the latest\", \"today's\", \"the last N calls\", \"this week's calls\".\n2. search_calls — semantic content search. Use for questions about WHAT was said (objections, themes, similar calls).\n3. get_call_report — direct lookup by exact call_id. Use only when the user gives a call_id or another tool returned one.\n4. get_dashboard — headline metrics + an inline image of the dashboard. Use when the user asks for a DASHBOARD, METRICS, AT-A-GLANCE summary, performance report, or visual overview. Modes:\n   - name=\"overview\" for cross-call counters\n   - name=\"closer\" with closer_name=<name> for one-closer breakdown\n\nDecision tree:\n- \"how are calls going?\" / \"this week's stats\" / \"overall metrics\" → get_dashboard(name=\"overview\").\n- \"how is <name> performing?\" / \"<name>'s dashboard\" / \"<name>'s last calls\" → get_dashboard(name=\"closer\", closer_name=\"<name>\").\n- \"latest call\" / \"most recent\" → recent_calls.\n- Content question → search_calls.\n- Specific call_id → get_call_report.\n\nHow to present a dashboard response (CRITICAL):\nWhen get_dashboard returns an `image_url` field, your reply MUST embed that image inline using EXACTLY this Markdown syntax:\n    ![Dashboard](IMAGE_URL_HERE)\nReplace IMAGE_URL_HERE with the exact value of image_url from the tool response — do not modify it. Put the image first, then summarise the key_metrics in 2–4 short bullets, then add a one-line clickable link to the interactive dashboard (`url` field) for drill-down.\n\nRules:\n- Do not invent facts. Quote tool output directly.\n- If a tool returns nothing, say so plainly.\n- For non-dashboard tools, prefer concise bullets when listing multiple calls.\n- Numbers come straight from call_reports — quote them as-is."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [1600, -224],
+      "id": "6cefca5e-5034-4834-ada2-ba19b109c7d6",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": "gemma4:e4b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "typeVersion": 1,
+      "position": [1440, -16],
+      "id": "73315caa-7521-4cd2-a019-50182eedb8e1",
+      "name": "Ollama Chat Model",
+      "credentials": {
+        "ollamaApi": {
+          "id": "xHuYe0MDGOs9IpBW",
+          "name": "Local Ollama service"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [1600, -16],
+      "id": "ddcb48fc-a8d4-4695-a499-e41236a03497",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Look up ONE specific call by exact call_id (format YYYYMMDD-HHMMSS-xxxxxxxx). Returns its PDF/HTML URLs and summary. DO NOT use this for \"latest\" or \"most recent\" — use recent_calls instead. Use this only when the user provides a call_id, or right after another tool returned one.",
+        "operation": "executeQuery",
+        "query": "SELECT call_id, pdf_url, html_url, summary, received_at\nFROM calls\nWHERE call_id = '{{ $fromAI('call_id', 'The call_id to look up, e.g. 20260508-095517-c6b289a7', 'string') }}'\nLIMIT 1;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [1856, 16],
+      "id": "4919fd6b-c29f-4a63-bccf-e99ccbbe96ef",
+      "name": "get_call_report",
+      "credentials": {
+        "postgres": {
+          "id": "cdnAGvzBDjcsQyRZ",
+          "name": "Postgres orca"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## Ingestion path (audio → analytics, one POST)\n\n**Read/Write Files**: reads audio from `/home/node/.n8n-files/audio/*` — the repo's `./audio/` folder. Any common container/codec works: the API normalises everything to 16 kHz mono WAV with ffmpeg, so the input extension doesn't matter downstream.\n\n**Analyze call**: POSTs the audio to call-analysis-api `/scorecard?persist=true&index_utterances=true`. One request runs the full GPU pipeline:\n\nASR (faster-whisper) → speaker diarization (pyannote) → LLM speaker→role relabel → text sentiment (RoBERTa) → speech emotion (emotion2vec+) → prosody (openSMILE) → PII redaction (Presidio) → entities (GLiNER) → LLM KPIs + coaching rubric (Ollama)\n\n…then persists the call + utterances + events + pgvector embeddings to Postgres in ONE transaction. There is no separate save-to-DB node (`persist=true` does the write), and no PDF is rendered here — reports render lazily on first request via rag-api `/report/{call_id}`.",
+        "height": 440,
+        "width": 640,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [704, -464],
+      "id": "1d453d4b-92a0-4dd0-b34e-b05db6b7a2bd",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Chat path (RAG agent over the processed calls)\n\n**AI Agent** (Ollama + window memory) picks ONE tool per the system-prompt decision tree:\n\n**search_calls** → rag-api `/search`: semantic search. Embeds the query (Ollama Qwen3-Embedding + Matryoshka 2560→1024 truncation) and runs a pgvector cosine match over `calls.summary_embedding`. Use for content / themes / objections (\"what was said\").\n\n**get_dashboard** → rag-api `/dashboard`: builds the KPI view-model from `calls` and returns an `image_url` to a freshly-rendered dashboard PNG (render-api HTML + Gotenberg screenshot). The agent embeds the image inline in its reply.\n\n**recent_calls** → Postgres `SELECT … ORDER BY received_at DESC`: plain query for latest / today / last-N. No embedding needed.\n\n**get_call_report** → Postgres lookup by exact call_id: returns the summary + report URLs (rag-api `/report/{call_id}` renders the PDF on first request and caches it).",
+        "height": 672,
+        "width": 848,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [1360, -464],
+      "id": "3d567e23-7d94-4007-8f8c-979468c4b305",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Semantic search over processed sales calls. Use when the user asks about call CONTENT (objections, sentiment, what was said, themes). Returns up to top_k similar calls with summary, KPIs, and pdf_url. For looking up a SPECIFIC call_id, use get_call_report instead.",
+        "url": "http://rag-api:8000/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $fromAI('q', 'The search query in natural language', 'string') }}"
+            },
+            {
+              "name": "top_k",
+              "value": "={{ $fromAI('top_k', 'How many results to return (1-20)', 'number', 5) }}"
+            },
+            {
+              "name": "scope",
+              "value": "calls"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [1744, 64],
+      "id": "11111111-2222-3333-4444-555555555555",
+      "name": "search_calls"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Returns the most recent N processed sales calls ordered newest first. Use for any time-based query (\"latest call\", \"most recent\", \"today\", \"the last 3 calls\"). The first row is the most recent call; its pdf_url is the latest report. Default top_k=5.",
+        "operation": "executeQuery",
+        "query": "SELECT call_id, received_at, file_name, duration_sec,\n       closer_talk_ratio, objection_count, buying_signal_count,\n       next_step_secured, rapport_quality, predicted_outcome,\n       summary, pdf_url, html_url\nFROM calls\nORDER BY received_at DESC\nLIMIT GREATEST(1, LEAST(50, {{ $fromAI('top_k', 'How many recent calls to return (1-50). Default 5.', 'number', 5) }}));",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.6,
+      "position": [1968, -32],
+      "id": "22222222-2222-3333-4444-555555555555",
+      "name": "recent_calls",
+      "credentials": {
+        "postgres": {
+          "id": "cdnAGvzBDjcsQyRZ",
+          "name": "Postgres orca"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Return headline KPI metrics and an `image_url` pointing at a freshly-rendered dashboard PNG. Use for high-level performance views. Modes:\n  - name=\"overview\": cross-call counters (total calls, calls in last 7 days, avg coaching score, % with next step). Use when the user asks for general/overall/recent stats.\n  - name=\"closer\" with closer_name=<name>: per-closer breakdown (calls handled, avg score, win rate %). Use when the user names a specific closer. closer_name is optional; omit it to show all closers combined.",
+        "url": "http://rag-api:8000/dashboard",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "name",
+              "value": "={{ $fromAI('name', 'Either \"overview\" or \"closer\".', 'string') }}"
+            },
+            {
+              "name": "closer_name",
+              "value": "={{ $fromAI('closer_name', 'Name of the closer when name=closer. Leave blank for all-closer aggregate.', 'string', '') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
+      "position": [2080, -80],
+      "id": "33333333-4444-5555-6666-777777777777",
+      "name": "get_dashboard"
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Read/Write Files from Disk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Read/Write Files from Disk": {
+      "main": [
+        [
+          {
+            "node": "Analyze call (call-analysis-api /scorecard)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze call (call-analysis-api /scorecard)": {
+      "main": [
+        []
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ollama Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_call_report": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "search_calls": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "recent_calls": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_dashboard": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "triggerCount": 1,
+  "tags": []
+}

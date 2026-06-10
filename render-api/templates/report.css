@@ -1,0 +1,742 @@
+/* ─────────────────────────────────────────────────────────────────────── */
+/*  Executive Call Report — editorial stylesheet (v6)                       */
+/*                                                                          */
+/*  Two-font system:  Newsreader (serif display)  +  Manrope (sans)         */
+/*  Variables fed by Jinja via `pal` mapping in report.html.                */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+@page {
+  size: A4;
+  margin: 18mm 16mm 16mm 16mm;
+  /* Paper colour applied to the whole sheet, including the @page margin
+     strip. Without this, WeasyPrint leaves the margin area transparent
+     (renders white) while body { background } only fills the content
+     area inside the margins — producing a visible white frame on every
+     page. */
+  background: #F5F0E6;
+  @bottom-left {
+    content: "{{ company_name }}   ·   {{ generated_at }}   ·   CONFIDENTIAL";
+    font-family: 'Manrope', sans-serif;
+    font-size: 7.5px;
+    letter-spacing: 0.08em;
+    color: #9C958A;
+    text-transform: uppercase;
+  }
+  @bottom-right {
+    content: counter(page) "  /  " counter(pages);
+    font-family: 'Manrope', sans-serif;
+    font-size: 7.5px;
+    letter-spacing: 0.08em;
+    color: #9C958A;
+  }
+}
+
+/* Belt-and-braces: also colour html so any unexpected canvas area
+   inherits the same paper tone instead of falling back to white. */
+html { background: #F5F0E6; }
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Base ───────────────────────────────────────────────────────────────── */
+body {
+  font-family: 'Manrope', 'Segoe UI', Arial, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 10.5pt;
+  line-height: 1.55;
+  font-feature-settings: 'ss01', 'cv11', 'tnum' 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.wrap { max-width: 1100px; margin: 0 auto; padding: 0; }
+
+h1, h2, h3, .display, .verdict, .quote-text, .num-display {
+  font-family: 'Newsreader', 'Source Serif Pro', Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.tabular { font-variant-numeric: tabular-nums; }
+.uc       { text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600; font-size: 8.5px; }
+.uc-soft  { text-transform: uppercase; letter-spacing: 0.14em; font-weight: 600; font-size: 8.5px; color: var(--ink-3); }
+
+/* ── Top edge accent rule (replaces gold bar) ───────────────────────────── */
+.edge-rule {
+  height: 3px;
+  background: var(--accent);
+  margin-bottom: 22px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/*  COVER / VERDICT                                                         */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.cover { padding-bottom: 6px; }
+
+.masthead {
+  display: block;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+  font-size: 0;
+}
+.masthead > span {
+  display: inline-block;
+  vertical-align: middle;
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink-2);
+  margin-right: 16px;
+}
+.masthead .dot { color: var(--ink-3); margin-right: 16px; }
+.masthead .confidential {
+  float: right;
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 0;
+}
+
+.cover-title {
+  font-size: 46px;
+  line-height: 1.04;
+  font-weight: 400;
+  color: var(--ink);
+  margin-top: 22px;
+  margin-bottom: 12px;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+.cover-title em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.cover-meta {
+  font-size: 9.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 22px;
+}
+.cover-meta b { color: var(--ink-2); font-weight: 700; letter-spacing: 0.02em; text-transform: none; font-size: 10.5px; }
+
+/* Verdict block — large editorial pull statement */
+.verdict {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 19px;
+  line-height: 1.4;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  padding: 20px 0 22px 0;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 22px;
+  text-wrap: pretty;
+}
+.verdict::before {
+  content: "Verdict";
+  display: block;
+  font-family: 'Manrope', sans-serif;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+
+/* Risk + Coaching score, side by side */
+.kpi-row {
+  font-size: 0;
+  margin-bottom: 26px;
+}
+.kpi-cell {
+  display: inline-block;
+  vertical-align: top;
+  width: 49%;
+  padding: 6px 0;
+}
+.kpi-cell + .kpi-cell {
+  border-left: 1px solid var(--rule);
+  padding-left: 24px;
+  margin-left: 2%;
+  width: 49%;
+}
+
+.kpi-label {
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-3);
+  margin-bottom: 8px;
+}
+.risk-value {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.015em;
+}
+.risk-value .lvl-high   { color: var(--neg); }
+.risk-value .lvl-medium { color: var(--warn); }
+.risk-value .lvl-low    { color: var(--pos); }
+.risk-sub {
+  font-size: 9.5px;
+  color: var(--ink-3);
+  margin-top: 8px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.coach-row { font-size: 0; }
+.coach-num {
+  display: inline-block;
+  vertical-align: baseline;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 52px;
+  line-height: 1;
+  color: var(--ink);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.coach-num .of100 {
+  font-family: 'Manrope', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+  letter-spacing: 0;
+  margin-left: 4px;
+}
+.coach-grade {
+  display: inline-block;
+  vertical-align: baseline;
+  margin-left: 14px;
+  padding: 4px 10px 5px;
+  border-radius: 3px;
+  font-family: 'Manrope', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #FBF7EF;
+}
+.grade-a { background: var(--pos); }
+.grade-b { background: #5C8062; }
+.grade-c { background: #B58A3E; }
+.grade-d { background: #C26D3C; }
+.grade-f { background: var(--neg); }
+
+.coach-bar {
+  display: block;
+  width: 100%;
+  height: 3px;
+  background: var(--rule);
+  margin: 14px 0 0 0;
+  position: relative;
+}
+.coach-fill {
+  position: absolute; left: 0; top: 0; height: 100%;
+  background: var(--ink);
+}
+
+/* Stat strip (under verdict) */
+.stat-strip {
+  font-size: 0;
+  margin-bottom: 26px;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  padding: 16px 0;
+}
+.stat {
+  display: inline-block;
+  vertical-align: top;
+  width: 25%;
+  padding: 0 14px;
+  border-left: 1px solid var(--rule-soft);
+}
+.stat-strip .stat:first-child { border-left: none; padding-left: 0; }
+.stat-strip .stat:last-child  { padding-right: 0; }
+
+.stat-k {
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.stat-v {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 22px;
+  line-height: 1.05;
+  color: var(--ink);
+  font-weight: 400;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+}
+.stat-h {
+  font-size: 9px;
+  color: var(--ink-3);
+  margin-top: 4px;
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 500;
+}
+.stat.tone-good .stat-v { color: var(--pos); }
+.stat.tone-warn .stat-v { color: var(--warn); }
+.stat.tone-bad  .stat-v { color: var(--neg); }
+
+/* Highlights list */
+.highlights {
+  padding: 4px 0 0 0;
+}
+.highlights-title {
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.highlight {
+  display: block;
+  padding: 9px 0;
+  border-top: 1px solid var(--rule-soft);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+.highlight:first-of-type { border-top: 1px solid var(--rule); }
+.highlight:last-of-type  { border-bottom: 1px solid var(--rule); }
+
+.hl-tag {
+  display: inline-block;
+  vertical-align: middle;
+  width: 8px; height: 8px; border-radius: 50%;
+  margin-right: 10px;
+  background: var(--ink-3);
+}
+.kind-objection      .hl-tag { background: var(--neg); }
+.kind-buying_signal  .hl-tag { background: var(--pos); }
+.kind-pivot          .hl-tag { background: var(--accent); }
+
+.hl-time {
+  display: inline-block;
+  vertical-align: middle;
+  min-width: 50px;
+  font-family: 'Manrope', sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 9.5px;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+  margin-right: 12px;
+}
+.hl-kind {
+  display: inline-block;
+  vertical-align: middle;
+  min-width: 100px;
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-2);
+  margin-right: 12px;
+}
+.hl-text {
+  display: inline;
+  font-family: 'Newsreader', Georgia, serif;
+  font-style: italic;
+  font-size: 11.5px;
+  color: var(--ink);
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/*  SECTION OPENERS                                                         */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.section {
+  margin-top: 28px;
+  padding-top: 4px;
+}
+.sec-hdr {
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 14px;
+  margin-bottom: 18px;
+  font-size: 0;
+}
+.ch-num {
+  display: inline-block;
+  vertical-align: baseline;
+  font-family: 'Newsreader', Georgia, serif;
+  font-style: italic;
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--accent);
+  letter-spacing: -0.01em;
+  margin-right: 16px;
+  line-height: 1;
+}
+.sec-hdr h2 {
+  display: inline-block;
+  vertical-align: baseline;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--ink);
+  letter-spacing: -0.015em;
+  line-height: 1;
+}
+.key-take {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  font-style: italic;
+  margin-bottom: 18px;
+  max-width: 88%;
+  text-wrap: pretty;
+}
+.key-take b { font-weight: 600; font-style: normal; color: var(--ink); }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/*  CHARTS                                                                  */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.charts        { font-size: 0; margin: 0 -8px; }
+.chart-cell    {
+  display: inline-block;
+  vertical-align: top;
+  width: 50%;
+  padding: 0 8px;
+  font-size: 10.5px;
+}
+.chart-full    { font-size: 10.5px; }
+/* Narrow, centred cell for square-ish charts (e.g. the talk-share donut)
+   that would look stretched at full page width. */
+.chart-narrow  {
+  font-size: 10.5px;
+  max-width: 340px;
+  margin: 0 auto;
+}
+/* Charts float directly on the page — no border, no card background. The
+   bordered cream rectangle that used to wrap every chart was the "white
+   border" artefact (cream-on-cream contrast against the paper colour). */
+.charts img, .chart-full img, .chart-narrow img, .charts svg, .chart-full svg, .chart-narrow svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: transparent;
+}
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/*  TABLES                                                                  */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.role-table { margin-top: 18px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10pt;
+  font-variant-numeric: tabular-nums;
+}
+th, td {
+  padding: 9px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--rule-soft);
+}
+thead th {
+  border-bottom: 1.5px solid var(--ink);
+  border-top: 1px solid var(--ink);
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+}
+tbody tr:last-child td { border-bottom: 1px solid var(--ink); }
+tbody td { color: var(--ink-2); }
+tbody td:first-child { color: var(--ink); font-weight: 600; }
+
+.var-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  margin-top: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.var-table th {
+  background: transparent;
+  color: var(--ink);
+  padding: 7px 10px;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-weight: 700;
+  text-align: right;
+  border-bottom: 1.5px solid var(--ink);
+  border-top: 1px solid var(--ink);
+}
+.var-table th:first-child { text-align: left; }
+.var-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--rule-soft);
+  text-align: right;
+  color: var(--ink-2);
+}
+.var-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink);
+}
+.var-table tbody tr:last-child td { border-bottom: 1px solid var(--ink); }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/*  COACHING — recommendation cards                                         */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.break-chips { margin-bottom: 18px; font-size: 0; }
+.break-chip {
+  display: inline-block;
+  padding: 3px 9px 4px;
+  margin: 0 6px 6px 0;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  background: var(--card);
+  font-variant-numeric: tabular-nums;
+}
+.break-chip.delta-pos { color: var(--pos); border-color: #b8d2bd; }
+.break-chip.delta-neg { color: var(--neg); border-color: #e3c0bc; }
+
+.rec-cards { display: block; }
+.rec-card {
+  display: block;
+  padding: 14px 0 14px 38px;
+  border-top: 1px solid var(--rule-soft);
+  position: relative;
+}
+.rec-card:first-child { border-top: 1px solid var(--rule); }
+.rec-card:last-child  { border-bottom: 1px solid var(--rule); }
+.rec-num {
+  position: absolute;
+  left: 0;
+  top: 14px;
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 19px;
+  font-style: italic;
+  color: var(--accent);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  width: 26px;
+}
+.rec-head {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.3;
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+.rec-body {
+  font-size: 10pt;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+.rec-card.prio-high .rec-head::after,
+.rec-card.prio-medium .rec-head::after,
+.rec-card.prio-low .rec-head::after {
+  content: 'PRIORITY';
+  font-family: 'Manrope', sans-serif;
+  display: inline-block;
+  margin-left: 10px;
+  vertical-align: middle;
+  font-size: 7.5px;
+  letter-spacing: 0.16em;
+  font-weight: 800;
+  padding: 2px 7px 3px;
+  border-radius: 2px;
+  font-style: normal;
+}
+.rec-card.prio-high .rec-head::after   { content: 'HIGH PRIORITY';   background: var(--neg);   color: #FBF7EF; }
+.rec-card.prio-medium .rec-head::after { content: 'MEDIUM PRIORITY'; background: var(--warn);  color: #1A1915; }
+.rec-card.prio-low .rec-head::after    { content: 'LOW PRIORITY';    background: var(--pos);   color: #FBF7EF; }
+
+/* Pull quote */
+.pullquote {
+  margin-top: 24px;
+  padding: 24px 28px 24px 28px;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  background: transparent;
+  position: relative;
+}
+.pq-meta {
+  font-size: 8.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 10px;
+}
+.pq-text {
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 22px;
+  line-height: 1.32;
+  color: var(--ink);
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.pq-text::before {
+  content: '\201C';
+  font-family: 'Newsreader', Georgia, serif;
+  font-size: 38px;
+  line-height: 1;
+  color: var(--accent);
+  margin-right: 4px;
+  vertical-align: -8px;
+}
+.pq-text::after  { content: '\201D'; color: var(--accent); }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/*  TRANSCRIPT                                                              */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.transcript { display: block; }
+.turn {
+  display: block;
+  width: 74%;
+  padding: 10px 14px 12px;
+  margin-bottom: 8px;
+  page-break-inside: avoid;
+  /* No card fill or outer border — bubbles float on the paper colour, with
+     only the colour-keyed border-left / border-right rule from
+     .bubble-client / .bubble-closer indicating the speaker. Matches the
+     chart-side fix that killed the cream-on-cream "white border" look. */
+}
+.bubble-client {
+  margin-left: 0;
+  margin-right: auto;
+  border-left: 3px solid var(--client);
+}
+.bubble-closer {
+  margin-left: auto;
+  margin-right: 0;
+  border-right: 3px solid var(--closer);
+  text-align: right;
+}
+/* Sentiment overrides — color the *outer* edge of the bubble */
+.bubble-client.sent-positive { border-left-color: var(--pos) !important; }
+.bubble-client.sent-negative { border-left-color: var(--neg) !important; }
+.bubble-closer.sent-positive { border-right-color: var(--pos) !important; }
+.bubble-closer.sent-negative { border-right-color: var(--neg) !important; }
+
+.turn-hdr {
+  font-size: 9px;
+  color: var(--ink-3);
+  margin-bottom: 4px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.turn-hdr b {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--ink);
+  font-weight: 800;
+  margin-right: 8px;
+}
+.bubble-closer .turn-hdr b { color: var(--closer-d); }
+.bubble-client .turn-hdr b { color: var(--client-d); }
+.ts { color: var(--ink-3); font-weight: 500; font-variant-numeric: tabular-nums; letter-spacing: 0.04em; }
+.turn-txt {
+  font-size: 10.5pt;
+  line-height: 1.55;
+  color: var(--ink);
+  font-family: 'Newsreader', Georgia, serif;
+  font-weight: 400;
+}
+.bubble-closer .turn-txt { text-align: left; }   /* keep paragraph text readable */
+
+.pill-row { display: inline-block; margin-left: 8px; vertical-align: middle; }
+.bubble-closer .pill-row { margin-left: 0; margin-right: 8px; }
+.pill {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 7.5px;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  padding: 1px 5px 2px;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+  font-family: 'Manrope', sans-serif;
+}
+.pill.active.pill-pos { background: #E6EFE6; color: #244D31; }
+.pill.active.pill-neu { background: #ECE8DD; color: #5B564D; }
+.pill.active.pill-neg { background: #F0DDD9; color: #6E2018; }
+
+/* ─────────────────────────────────────────────────────────────────────── */
+/*  META                                                                    */
+/* ─────────────────────────────────────────────────────────────────────── */
+
+.meta-grid { font-size: 0; border-top: 1px solid var(--rule); }
+.meta-item {
+  display: inline-block;
+  vertical-align: top;
+  width: 50%;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--rule-soft);
+  font-size: 10pt;
+}
+.meta-item:nth-child(2n) { padding-left: 22px; border-left: 1px solid var(--rule-soft); width: 50%; }
+.meta-item .mk {
+  font-size: 8.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--ink-3);
+  margin-bottom: 4px;
+}
+.meta-item .mv {
+  font-family: 'Manrope', sans-serif;
+  font-size: 10pt;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.render-tag {
+  margin-top: 18px;
+  font-size: 8.5px;
+  color: var(--ink-3);
+  letter-spacing: 0.06em;
+  font-family: 'Manrope', sans-serif;
+}
+
+/* Page breaks ─────────────────────────────────────────────────────────────
+   Every numbered section opens on a fresh page (the design's intent).
+   Section headers stay glued to their first chart/table so we never orphan
+   a chapter number above a page break. */
+.section          { page-break-inside: auto; }
+.section .sec-hdr { page-break-after: avoid; break-after: avoid; }
+.section h2       { page-break-after: avoid; break-after: avoid; }
+.section .key-take { page-break-after: avoid; break-after: avoid; }
+.page-break       { page-break-before: always; break-before: page; }
+
+/* Print niceties */
+@media print {
+  body { background: var(--paper); }
+}

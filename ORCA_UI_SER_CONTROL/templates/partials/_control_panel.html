@@ -1,0 +1,262 @@
+{# Big single-job control panel. Driven by HTMX polling on the parent
+   container — this template renders ONE selected job (current or
+   historical) into a control-room layout. #}
+
+{% if not job %}
+  <div class="card p-10 text-center">
+    <div class="text-5xl mb-3 opacity-30">⚡</div>
+    <div class="text-lg font-medium">No runs yet</div>
+    <div class="text-sm text-muted mt-1 mb-5">Upload an audio file to kick off a scorecard run.</div>
+    <label class="btn btn-primary mx-auto" style="display:inline-flex">
+      ▶ Run scorecard
+      <input type="file" name="file"
+             accept=".mp3,.wav,.m4a,.ogg,.flac,.mp4,.aac,.opus,.webm"
+             class="hidden"
+             onchange="document.getElementById('upload-input')?.dispatchEvent(new CustomEvent('proxy-file', {detail: this.files}))" />
+    </label>
+    <div class="text-xs text-muted mt-3 mono">supported: mp3 · wav · m4a · ogg · flac · mp4 · aac · opus · webm</div>
+  </div>
+{% else %}
+
+{% set m   = (job.metadata or {}).get('models') or {} %}
+{% set dst = job.display_status %}
+{% set sc  = dst|status_class %}
+
+{# ── Overall progress (count of done stages / total stages) ─────────── #}
+{% set done_count = progress.stages|selectattr('state', 'equalto', 'done')|list|length %}
+{% set total_stages = progress.stages|length %}
+{% set pct = (done_count * 100 / total_stages) if total_stages else 0 %}
+
+<div class="card p-6 mb-4">
+  <!-- HEADER STRIP -->
+  <div class="flex items-baseline justify-between mb-4 flex-wrap gap-3">
+    <div>
+      <div class="text-[11px] uppercase text-muted tracking-wide">Run</div>
+      <div class="text-3xl font-bold mono leading-none">#{{ '%04d' % (job.run_no or 0) }}</div>
+      <div class="text-xs text-muted mono mt-1">{{ job.display_file }}</div>
+    </div>
+    <div>
+      <div class="text-[11px] uppercase text-muted tracking-wide text-right">status</div>
+      <div class="mt-1"><span class="pill {{ sc }} text-base">{{ dst }}</span></div>
+    </div>
+    <div>
+      <div class="text-[11px] uppercase text-muted tracking-wide text-right">elapsed</div>
+      <div class="text-3xl font-bold mono tabular-nums text-right
+                  {% if job.status == 'running' %}text-amber-500
+                  {% elif job.status == 'failed' %}text-rose-500
+                  {% else %}{% endif %}">
+        {{ job.display_time|fmt_seconds }}
+        {% if job.status == 'running' %}<span class="text-base">⏱</span>{% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- OVERALL PROGRESS BAR -->
+  <div class="mb-4">
+    <div class="flex items-center justify-between text-[10px] uppercase tracking-wider text-muted mb-1">
+      <span>progress</span>
+      <span class="mono tabular-nums">{{ done_count }}/{{ total_stages }} · {{ '%d' % pct }}%</span>
+    </div>
+    <div class="progress">
+      <div class="bar" style="width: {{ pct }}%
+        {% if job.status == 'failed' %}; background: #E11D48{% endif %}"></div>
+    </div>
+  </div>
+
+  <!-- PIPELINE STAGE STRIP — visual overview -->
+  <div class="border-t border-rule-soft pt-4 mb-2">
+    <div class="text-[11px] uppercase text-muted tracking-wide mb-3">Pipeline</div>
+    <div class="flex items-center justify-between gap-2">
+      {% for s in progress.stages %}
+        {% set is_active = (s.state == 'active') %}
+        {% set is_done   = (s.state == 'done') %}
+        {% set is_fail   = (s.state == 'failed') %}
+        <div class="flex-1 flex flex-col items-center">
+          <div class="w-8 h-8 rounded-full grid place-items-center text-sm font-bold transition-colors
+                      {% if is_done %}bg-emerald-500 text-white
+                      {% elif is_active %}bg-amber-500 text-white animate-pulse
+                      {% elif is_fail %}bg-rose-500 text-white
+                      {% else %}bg-card-alt border border-rule-soft text-muted{% endif %}">
+            {% if is_done %}✓{% elif is_fail %}✗{% elif is_active %}●{% else %}{{ loop.index }}{% endif %}
+          </div>
+          <div class="text-[10px] mono mt-1 uppercase tracking-wider
+                      {% if is_active %}font-bold text-ink
+                      {% elif is_done %}text-ink
+                      {% else %}text-muted{% endif %}">{{ s.name }}</div>
+        </div>
+        {% if not loop.last %}
+          <div class="flex-1 h-0.5
+                      {% if progress.stages[loop.index].state in ['done','active','failed'] %}bg-emerald-500
+                      {% else %}bg-rule-soft{% endif %}"></div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- PER-STAGE TIMING LIST — peak usage reached during each stage, % of capacity.
+       Column meanings:
+         GPU %  → whole-card compute utilization, a SINGLE value (e.g. "98").
+                  Not per-process (see the summary-box note above for why).
+         VRAM % / CPU % / RAM %  → a "rel/glob" PAIR, e.g. "12/24":
+                  rel  (left)  = our pipeline's own peak
+                  glob (right) = the whole box's peak at that moment
+                  the gap between them = everything else running (mostly Ollama).
+       A "·" means that side wasn't available; "—" means no reading at all.
+       CONCURRENT rows ("∥ concurrent"): emotion · gemma4 · prosody run at the
+       SAME time. Time is attributable per step (each member is listed below
+       with its OWN duration); resource % is NOT separable on one shared card,
+       so a SINGLE shared peak sits on the group header row and the member
+       sub-lines show "·" in the % columns (their reading is the header's). -->
+  <div class="pt-2 mb-4">
+    <div class="text-[10px] uppercase tracking-wider text-muted mb-1">per-stage peaks · % of capacity — vram/cpu/ram = ser-api/box · gpu = whole card · ∥ = ran concurrently (shared peak)</div>
+    <table class="w-full text-sm">
+      <tbody>
+        <tr class="text-[10px] uppercase tracking-wider text-muted border-b border-rule-soft">
+          <td></td>
+          <td class="py-1">stage · sub-stage</td>
+          <td class="text-right pr-3">time</td>
+          <td class="text-right pr-2">GPU %</td>
+          <td class="text-right pr-2">VRAM %</td>
+          <td class="text-right pr-2">CPU %</td>
+          <td class="text-right">RAM %</td>
+        </tr>
+        {% for s in progress.stages %}
+          {% set is_active = (s.state == 'active') %}
+          {% set is_done   = (s.state == 'done') %}
+          {% set is_fail   = (s.state == 'failed') %}
+          {% set is_pending = (s.state == 'pending') %}
+          <tr class="border-t border-rule-soft">
+            <td class="py-1.5 pr-2 w-6 align-top">
+              {% if is_done %}<span class="text-emerald-500">✓</span>
+              {% elif is_active %}<span class="text-amber-500 animate-pulse">●</span>
+              {% elif is_fail %}<span class="text-rose-500">✗</span>
+              {% else %}<span class="text-muted opacity-50">○</span>{% endif %}
+            </td>
+            <td class="py-1.5 pr-3 mono uppercase tracking-wider align-top
+                       {% if is_active %}font-bold{% elif is_pending %}text-muted{% endif %}">
+              {{ '%d.' % loop.index }} {{ s.name }}
+            </td>
+            <td class="py-1.5 pr-3 mono tabular-nums text-right align-top
+                       {% if is_active %}text-amber-500
+                       {% elif is_fail %}text-rose-500
+                       {% elif is_pending %}text-muted
+                       {% endif %}">
+              {% if s.duration_sec is not none %}
+                {{ s.duration_sec|fmt_seconds }}{% if s.live %} ⏱{% endif %}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            {% set sp = s.stage_peaks %}
+            <td class="py-1.5 pr-2 mono tabular-nums text-right text-xs align-top {% if not sp %}text-muted{% endif %}">{{ sp.gpu|fmt_pct_solo if sp else '' }}</td>
+            <td class="py-1.5 pr-2 mono tabular-nums text-right text-xs align-top {% if not sp %}text-muted{% endif %}">{{ sp.vram|fmt_pct_pair if sp else '' }}</td>
+            <td class="py-1.5 pr-2 mono tabular-nums text-right text-xs align-top {% if not sp %}text-muted{% endif %}">{{ sp.cpu|fmt_pct_pair if sp else '' }}</td>
+            <td class="py-1.5 mono tabular-nums text-right text-xs align-top {% if not sp %}text-muted{% endif %}">{{ sp.ram|fmt_pct_pair if sp else '' }}</td>
+          </tr>
+
+          {# ── Sub-rows: per-model timings within this stage ───────────── #}
+          {% set stage_idx = loop.index %}
+          {% for mm in s.models %}
+            {% if mm.kind == 'concurrent' %}
+              {# A concurrent group: emotion ∥ gemma4 ∥ prosody ran AT THE SAME
+                 TIME. Time is attributable per step (each member shows its own
+                 below); resource % is NOT separable on one shared card, so the
+                 group carries a SINGLE peak reading on this header row. #}
+              {% set pk = mm.peaks %}
+              <tr>
+                <td></td>
+                <td class="py-0.5 pr-3 mono text-xs pl-4 text-ink">
+                  {{ stage_idx }}.{{ loop.index }}
+                  {% for mem in mm.members %}{{ mem.model|short_model }}{% if not loop.last %} · {% endif %}{% endfor %}
+                  <span class="text-amber-500"> · ∥ concurrent</span><span class="text-muted"> (shared peak)</span>
+                </td>
+                <td class="py-0.5 pr-3 mono tabular-nums text-right text-xs text-muted">{{ mm.duration_sec|fmt_seconds }}</td>
+                <td class="py-0.5 pr-2 mono tabular-nums text-right text-xs text-muted">{{ pk.gpu|fmt_pct_solo if pk else '—' }}</td>
+                <td class="py-0.5 pr-2 mono tabular-nums text-right text-xs text-muted">{{ pk.vram|fmt_pct_pair if pk else '—' }}</td>
+                <td class="py-0.5 pr-2 mono tabular-nums text-right text-xs text-muted">{{ pk.cpu|fmt_pct_pair if pk else '—' }}</td>
+                <td class="py-0.5 mono tabular-nums text-right text-xs text-muted">{{ pk.ram|fmt_pct_pair if pk else '—' }}</td>
+              </tr>
+              {# member sub-lines: own TIME only — resource cells stay blank
+                 because the reading lives on the shared header row above. #}
+              {% for mem in mm.members %}
+                <tr>
+                  <td></td>
+                  <td class="py-0.5 pr-3 mono text-xs pl-8 text-muted">
+                    ↳ {{ mem.model|short_model }}
+                    {% set sz = mem.size_mb|fmt_size %}{% if sz %} · {{ sz }}{% endif %}
+                    · {{ mem.kind }}
+                  </td>
+                  <td class="py-0.5 pr-3 mono tabular-nums text-right text-xs text-muted">{{ mem.duration_sec|fmt_seconds }}</td>
+                  <td class="py-0.5 pr-2 text-right text-xs text-muted opacity-40">·</td>
+                  <td class="py-0.5 pr-2 text-right text-xs text-muted opacity-40">·</td>
+                  <td class="py-0.5 pr-2 text-right text-xs text-muted opacity-40">·</td>
+                  <td class="py-0.5 text-right text-xs text-muted opacity-40">·</td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td></td>
+                <td class="py-0.5 pr-3 mono text-xs pl-4 text-ink">
+                  {{ stage_idx }}.{{ loop.index }} {{ mm.model|short_model }}
+                  {% set sz = mm.size_mb|fmt_size %}{% if sz %}<span class="text-muted"> · {{ sz }}</span>{% endif %}
+                  <span class="text-muted"> · {{ mm.kind }}</span>
+                </td>
+                <td class="py-0.5 pr-3 mono tabular-nums text-right text-xs text-muted">
+                  {{ mm.duration_sec|fmt_seconds }}
+                </td>
+                {% set pk = mm.peaks %}
+                <td class="py-0.5 pr-2 mono tabular-nums text-right text-xs text-muted">{{ pk.gpu|fmt_pct_solo if pk else '—' }}</td>
+                <td class="py-0.5 pr-2 mono tabular-nums text-right text-xs text-muted">{{ pk.vram|fmt_pct_pair if pk else '—' }}</td>
+                <td class="py-0.5 pr-2 mono tabular-nums text-right text-xs text-muted">{{ pk.cpu|fmt_pct_pair if pk else '—' }}</td>
+                <td class="py-0.5 mono tabular-nums text-right text-xs text-muted">{{ pk.ram|fmt_pct_pair if pk else '—' }}</td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ERROR (if failed) -->
+  {% if job.last_error %}
+    <div class="border-t border-rule-soft pt-4 mb-4">
+      <div class="text-[11px] uppercase tracking-wide text-rose-500 mb-2">error</div>
+      <pre class="text-xs mono text-rose-500 whitespace-pre-wrap">{{ job.last_error }}</pre>
+    </div>
+  {% endif %}
+
+  <!-- MODELS USED + TIMING side by side -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-rule-soft pt-4">
+    <div>
+      <div class="text-[11px] uppercase text-muted tracking-wide mb-2">models used</div>
+      <table class="text-sm w-full">
+        <tbody class="mono">
+          <tr><td class="text-muted pr-3 py-0.5 w-24">asr</td><td>{{ m.asr|default('—', true) }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">diarization</td><td>{{ m.diarization|default('—', true) }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">sentiment</td><td>{{ m.sentiment|default('—', true) }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">emotion</td><td>{{ m.ser|default('—', true) }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">ner</td><td>{{ m.ner|default('—', true) }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">llm</td><td>{{ m.llm|default('—', true) }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">embedding</td><td>{{ m.embedding|default('—', true) }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div>
+      <div class="text-[11px] uppercase text-muted tracking-wide mb-2">timing</div>
+      <table class="text-sm w-full">
+        <tbody class="mono">
+          <tr><td class="text-muted pr-3 py-0.5 w-24">job id</td><td class="text-xs break-all">{{ job.job_id }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">started</td><td>{{ job.started_at|fmt_ts }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">finished</td><td>{{ job.finished_at|fmt_ts if job.finished_at else (job.status == 'running' and 'in flight' or '—') }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">stage</td><td>{{ job.stage or '—' }}</td></tr>
+          <tr><td class="text-muted pr-3 py-0.5">duration</td><td>{{ job.duration_sec|fmt_seconds if job.duration_sec else '—' }}</td></tr>
+          {% if job.call_id %}
+            <tr><td class="text-muted pr-3 py-0.5">call</td><td><a class="text-accent hover:underline" href="/calls/{{ job.call_id }}">{{ job.call_id }}</a></td></tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}

@@ -1,0 +1,63 @@
+{# Result partial for /db/query. Swapped into #qresult by HTMX. #}
+
+{% if not result.ok %}
+  <div class="card p-4 border-rose-500" style="border-color:#E11D48">
+    <div class="text-[11px] uppercase tracking-wide text-rose-500 mb-1">error</div>
+    <pre class="text-xs mono text-rose-500 whitespace-pre-wrap">{{ result.error }}</pre>
+  </div>
+{% elif result.columns|length == 0 %}
+  <div class="card p-4">
+    <div class="text-[11px] uppercase tracking-wide text-muted mb-1">ok</div>
+    <div class="text-sm">
+      Statement executed in <span class="mono tabular-nums">{{ result.elapsed_ms }} ms</span>{% if result.affected is not none %}, <span class="mono tabular-nums">{{ result.affected }}</span> row{{ '' if result.affected == 1 else 's' }} affected{% endif %}.
+    </div>
+  </div>
+{% else %}
+  <div class="card p-0 overflow-hidden">
+    <div class="px-3 py-2 border-b border-rule-soft bg-card-alt flex items-center justify-between flex-wrap gap-2">
+      <div class="text-[11px] mono">
+        <span class="tabular-nums">{{ result.row_count }}</span> rows
+        {% if result.truncated %}
+          <span class="text-amber-500"> · truncated at {{ result.row_count }}</span>
+        {% endif %}
+        <span class="text-muted"> · {{ result.elapsed_ms }} ms</span>
+      </div>
+      <button type="button" class="text-[11px] mono text-muted hover:text-ink"
+              onclick="(function(){
+                const cols={{ result.columns|tojson }};
+                const rows={{ result.rows|tojson }};
+                const tsv = [cols.join('\t')].concat(rows.map(r => r.map(v => v===null?'':typeof v==='object'?JSON.stringify(v):String(v)).join('\t'))).join('\n');
+                navigator.clipboard && navigator.clipboard.writeText(tsv);
+                showToast && showToast('copied TSV ('+rows.length+' rows)','ok');
+              })()">copy TSV</button>
+    </div>
+    <div class="overflow-auto max-h-[60vh]">
+      <table class="text-xs mono w-max min-w-full">
+        <thead class="bg-card-alt sticky top-0 z-10">
+          <tr>
+            {% for c in result.columns %}
+              <th class="text-left px-2 py-1.5 text-[10px] uppercase text-muted border-b border-rule-soft whitespace-nowrap">{{ c }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in result.rows %}
+            <tr class="border-b border-rule-soft hover:bg-card-alt">
+              {% for v in row %}
+                <td class="px-2 py-1 align-top whitespace-pre-wrap break-words max-w-[60ch]">
+                  {%- if v is none -%}
+                    <span class="text-muted italic">null</span>
+                  {%- elif v is mapping or (v is iterable and v is not string) -%}
+                    <span class="text-accent">{{ v|tojson }}</span>
+                  {%- else -%}
+                    {{ v }}
+                  {%- endif -%}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endif %}

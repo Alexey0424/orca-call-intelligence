@@ -1,0 +1,918 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>{{ doc_title }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper:        #F5F0E8;
+    --paper-deep:   #EDE5D7;
+    --paper-shade:  #E8DFCE;
+    --rule:         #DCD1BC;
+    --rule-soft:    #E7DECC;
+    --ink:          #1F1B16;
+    --ink-2:        #3D362C;
+    --ink-3:        #6B6155;
+    --ink-mute:     #968A78;
+    --card:         #FBF7F0;
+
+    --accent:       #D97757;
+    --accent-deep:  #B85A3D;
+    --accent-soft:  #F2D3C3;
+
+    --good:         #5C6F5A;
+    --good-soft:    #C9D2C5;
+    --warn:         #C99745;
+    --bad:          #A2543D;
+    --bad-soft:     #E8C9BC;
+
+    --sentiment-improving: #5C6F5A;
+    --sentiment-stable:    #D9A862;
+    --sentiment-declining: #A2543D;
+  }
+
+  .theme-slate {
+    --paper:        #1B1A18;
+    --paper-deep:   #232220;
+    --paper-shade:  #2A2926;
+    --rule:         #3A3733;
+    --rule-soft:    #2E2C28;
+    --ink:          #F2EDE2;
+    --ink-2:        #D9D2C2;
+    --ink-3:        #A89E8A;
+    --ink-mute:     #7A7160;
+    --card:         #232220;
+  }
+
+  .theme-bone {
+    --paper:        #ECE6DA;
+    --paper-deep:   #E4DCCB;
+    --paper-shade:  #DDD2BC;
+    --rule:         #C9BCA0;
+    --rule-soft:    #D7CBAF;
+    --ink:          #2A2418;
+    --ink-2:        #4A4231;
+    --card:         #F2ECDD;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Geist', 'Geist Sans', -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  .stage {
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 0;
+  }
+  .stage-inner { transform-origin: top center; }
+
+  .canvas {
+    width: 1200px;
+    background: var(--paper);
+    color: var(--ink);
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* paper grain — extremely subtle */
+  .canvas::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image:
+      radial-gradient(rgba(31,27,22,0.018) 1px, transparent 1px),
+      radial-gradient(rgba(217,119,87,0.012) 1px, transparent 1.2px);
+    background-size: 5px 5px, 13px 13px;
+    background-position: 0 0, 2px 3px;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .canvas > * { position: relative; z-index: 2; }
+
+  /* ========== HEADER ========== */
+  .hdr {
+    padding: 44px 56px 22px 56px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: end;
+    gap: 24px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .brand-mark {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper);
+    display: grid;
+    place-items: center;
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 22px;
+    letter-spacing: -0.02em;
+    flex: 0 0 auto;
+  }
+  .brand-name {
+    font-family: 'Geist', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+  .brand-name .dot {
+    display: inline-block;
+    width: 5px; height: 5px;
+    background: var(--accent);
+    border-radius: 50%;
+    margin: 0 10px 3px 10px;
+    vertical-align: middle;
+  }
+  .brand-name .sub {
+    font-weight: 400;
+    letter-spacing: 0.18em;
+    color: var(--ink-3);
+  }
+  .hdr-meta {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .scope-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 12px 6px 6px;
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    background: var(--card);
+    font-size: 12px;
+    color: var(--ink-2);
+    align-self: flex-end;
+  }
+  .scope-chip .pip {
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #FFF8F2;
+    font-size: 11px;
+    font-weight: 600;
+    display: grid;
+    place-items: center;
+    font-family: 'Geist', sans-serif;
+  }
+  .hdr-stamp {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.06em;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+  }
+
+  .title-block {
+    padding: 14px 56px 28px 56px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .eyebrow::before {
+    content: '';
+    width: 28px; height: 1px;
+    background: var(--accent);
+    display: inline-block;
+  }
+  .title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 68px;
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    color: var(--ink);
+    font-weight: 400;
+    margin: 0;
+  }
+  .title em {
+    font-style: italic;
+    color: var(--accent-deep);
+  }
+  .verdict {
+    margin-top: 22px;
+    font-size: 17px;
+    line-height: 1.55;
+    color: var(--ink-2);
+    max-width: 820px;
+    font-weight: 400;
+  }
+  .verdict b {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* ========== KPI ROW ========== */
+  .kpis {
+    padding: 32px 56px 14px 56px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .kpi {
+    padding: 4px 22px 18px 0;
+    border-right: 1px solid var(--rule-soft);
+    position: relative;
+  }
+  .kpi + .kpi { padding-left: 22px; }
+  .kpi:last-child { border-right: none; padding-right: 0; }
+
+  .kpi-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 18px;
+  }
+  .kpi-value {
+    font-family: 'Instrument Serif', serif;
+    font-size: 72px;
+    line-height: 0.9;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+    font-weight: 400;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+  }
+  .kpi-value .suffix {
+    font-family: 'Geist', sans-serif;
+    font-size: 18px;
+    color: var(--ink-3);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+  .kpi-value .null {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 32px;
+    color: var(--ink-mute);
+    letter-spacing: 0;
+  }
+  .kpi-trend {
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--ink-3);
+  }
+  .kpi-trend .delta {
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 500;
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: var(--paper-shade);
+    color: var(--ink-2);
+    letter-spacing: 0.02em;
+  }
+  .kpi-trend .delta.pos { background: var(--good-soft); color: #2F4031; }
+  .kpi-trend .delta.neg { background: var(--bad-soft);  color: #6B2B1A; }
+  .kpi-trend .delta.flat { background: var(--paper-shade); color: var(--ink-3); }
+
+  .kpi-spark {
+    margin-top: 14px;
+    height: 26px;
+    width: 100%;
+    display: block;
+  }
+
+  /* ========== SECTION ========== */
+  .section {
+    padding: 36px 56px 12px 56px;
+    border-bottom: 1px solid var(--rule);
+  }
+  .section:last-of-type { border-bottom: none; }
+  .sec-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 22px;
+  }
+  .sec-num {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.22em;
+    color: var(--ink-3);
+  }
+  .sec-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+    font-weight: 400;
+    margin: 0;
+  }
+  .sec-title em { font-style: italic; color: var(--accent-deep); }
+  .sec-note {
+    font-size: 12.5px;
+    color: var(--ink-3);
+    max-width: 360px;
+    text-align: right;
+  }
+
+  /* ========== CALLS PER DAY ========== */
+  .cpd {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 28px;
+    align-items: stretch;
+  }
+  .cpd-chart {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 22px 24px 18px 24px;
+    position: relative;
+  }
+  .cpd-chart svg { display: block; width: 100%; height: 220px; }
+  .cpd-side {
+    width: 260px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 8px 0;
+  }
+  .cpd-stat {
+    border-top: 1px solid var(--rule);
+    padding-top: 12px;
+  }
+  .cpd-stat:first-child { border-top: none; padding-top: 0; }
+  .cpd-stat .k {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 6px;
+  }
+  .cpd-stat .v {
+    font-family: 'Instrument Serif', serif;
+    font-size: 28px;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .cpd-stat .v .unit {
+    font-family: 'Geist', sans-serif;
+    font-size: 12px;
+    color: var(--ink-3);
+    font-weight: 500;
+  }
+  .cpd-stat .hint {
+    font-size: 11.5px;
+    color: var(--ink-3);
+    margin-top: 4px;
+  }
+
+  /* ========== DISTRIBUTION TRIO ========== */
+  .trio {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  .dist {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 22px 24px 22px 24px;
+    position: relative;
+  }
+  .dist-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 4px;
+  }
+  .dist-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 22px;
+    color: var(--ink);
+    line-height: 1.15;
+    margin-bottom: 18px;
+    font-style: italic;
+  }
+  .dist-body {
+    display: grid;
+    grid-template-columns: 124px 1fr;
+    gap: 18px;
+    align-items: center;
+  }
+  .dist svg.donut { width: 124px; height: 124px; display: block; }
+  .dist-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .leg {
+    display: grid;
+    grid-template-columns: 10px 1fr auto;
+    gap: 10px;
+    align-items: center;
+    font-size: 13px;
+    color: var(--ink-2);
+  }
+  .leg.dim { opacity: 0.5; }
+  .leg .sw { width: 10px; height: 10px; border-radius: 2px; }
+  .leg .name { text-transform: capitalize; }
+  .leg .pct {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .donut-center {
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    fill: var(--ink);
+  }
+  .donut-center-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.18em;
+    fill: var(--ink-3);
+    text-transform: uppercase;
+  }
+
+  /* ========== LEADERBOARD ========== */
+  .lead {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    padding: 22px 24px;
+  }
+  .lead-row {
+    display: grid;
+    grid-template-columns: 22px 180px 1fr 64px;
+    gap: 18px;
+    align-items: center;
+    padding: 12px 0;
+    border-top: 1px solid var(--rule-soft);
+  }
+  .lead-row:first-child { border-top: none; padding-top: 4px; }
+  .lead-row:last-child  { padding-bottom: 4px; }
+  .lead-rank {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+  .lead-name { display: flex; align-items: center; gap: 12px; }
+  .lead-avatar {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--paper-shade);
+    color: var(--ink-2);
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 14px;
+    display: grid; place-items: center;
+    border: 1px solid var(--rule);
+    flex: 0 0 auto;
+  }
+  .lead-avatar.unattributed {
+    font-style: normal;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-mute);
+  }
+  .lead-name .who {
+    font-size: 14px;
+    color: var(--ink);
+    font-weight: 500;
+    letter-spacing: -0.005em;
+  }
+  .lead-name .who.unattributed { color: var(--ink-3); }
+  .lead-name .who .meta {
+    color: var(--ink-3);
+    font-weight: 400;
+    margin-left: 8px;
+    font-size: 12px;
+  }
+  .lead-bar {
+    position: relative;
+    height: 8px;
+    background: var(--paper-shade);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .lead-bar .fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: linear-gradient(90deg, var(--accent), var(--accent-deep));
+    border-radius: 999px;
+  }
+  .lead-bar .fill.unattributed {
+    background: linear-gradient(90deg, var(--ink-mute), var(--ink-3));
+    opacity: 0.7;
+  }
+  .lead-count {
+    text-align: right;
+    font-family: 'Instrument Serif', serif;
+    font-size: 26px;
+    line-height: 1;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+  .lead-count .small {
+    font-family: 'Geist', sans-serif;
+    font-size: 11px;
+    color: var(--ink-3);
+    font-weight: 500;
+    display: block;
+    margin-top: 3px;
+    letter-spacing: 0.04em;
+  }
+
+  /* ========== TABLE ========== */
+  .tbl-wrap {
+    background: var(--card);
+    border: 1px solid var(--rule);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  table.recent {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+    color: var(--ink-2);
+  }
+  table.recent thead th {
+    text-align: left;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 500;
+    padding: 14px 18px;
+    background: var(--paper-deep);
+    border-bottom: 1px solid var(--rule);
+  }
+  table.recent tbody td {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--rule-soft);
+    vertical-align: middle;
+  }
+  table.recent tbody tr:last-child td { border-bottom: none; }
+  .cell-id {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-2);
+    letter-spacing: 0.01em;
+  }
+  .cell-id .pre { color: var(--ink-mute); }
+  .cell-time { font-size: 12px; color: var(--ink-2); }
+  .cell-time .date { color: var(--ink); font-weight: 500; display: block; }
+  .cell-time .time { color: var(--ink-3); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+  .cell-name { color: var(--ink); font-weight: 500; }
+  .cell-name.unattributed {
+    color: var(--ink-3);
+    font-style: italic;
+    font-family: 'Instrument Serif', serif;
+    font-size: 14px;
+    font-weight: 400;
+  }
+  .cell-dur {
+    font-family: 'Instrument Serif', serif;
+    font-size: 20px;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .cell-dur .sec {
+    font-family: 'Geist', sans-serif;
+    font-size: 11px;
+    color: var(--ink-3);
+  }
+  .sig {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-2);
+  }
+  .sig .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .sig.obj  .dot { background: var(--bad); }
+  .sig.buy  .dot { background: var(--good); }
+  .sig.zero { color: var(--ink-mute); }
+  .sig.zero .dot { background: var(--rule); }
+
+  .nxt {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 7px;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-size: 11.5px;
+    color: var(--ink-2);
+    font-weight: 500;
+  }
+  .nxt.yes {
+    background: rgba(92,111,90,0.13);
+    border-color: rgba(92,111,90,0.35);
+    color: #2F4031;
+  }
+  .nxt.no {
+    background: rgba(162,84,61,0.10);
+    border-color: rgba(162,84,61,0.30);
+    color: #6B2B1A;
+  }
+  .nxt .check {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    background: var(--good);
+    color: var(--paper);
+    display: grid; place-items: center;
+    font-size: 9px;
+    font-weight: 700;
+  }
+  .nxt.no .check { background: var(--bad); }
+
+  /* ========== FOOTER ========== */
+  .ftr {
+    padding: 28px 56px 36px 56px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid var(--rule);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+  }
+  .ftr .mid { color: var(--ink-3); }
+  .ftr .mark { display: inline-flex; align-items: center; gap: 8px; }
+  .ftr .mark .m {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Instrument Serif', serif;
+    font-style: italic;
+    font-size: 12px;
+    display: grid; place-items: center;
+  }
+
+  /* ========== DENSITY ========== */
+  .density-compact .hdr      { padding: 32px 56px 16px 56px; }
+  .density-compact .title    { font-size: 56px; }
+  .density-compact .kpi-value{ font-size: 60px; }
+  .density-compact .section  { padding: 28px 56px 8px 56px; }
+  .density-compact .ftr      { padding: 22px 56px 28px 56px; }
+
+  @media print {
+    body { background: var(--paper); }
+    .stage { padding: 0; }
+    .stage-inner { transform: none !important; }
+  }
+</style>
+</head>
+<body class="theme-{{ theme }}{% if density == 'compact' %} density-compact{% endif %}">
+
+<div class="stage">
+  <div class="stage-inner">
+    <div class="canvas"{% if accent_overrides %} style="{{ accent_overrides }}"{% endif %}>
+
+      {# ============== HEADER ============== #}
+      <header class="hdr">
+        <div class="brand">
+          <div class="brand-mark">{{ brand_mark }}</div>
+          <div class="brand-name">
+            {{ brand_name }}<span class="dot"></span><span class="sub">{{ brand_sub }}</span>
+          </div>
+        </div>
+        <div class="hdr-meta">
+          <span class="scope-chip">
+            <span class="pip">{{ scope_pip }}</span>
+            <span>{{ scope_chip_text }}</span>
+          </span>
+          <span class="hdr-stamp">{{ generated_stamp }}</span>
+        </div>
+      </header>
+
+      <div class="title-block">
+        <div class="eyebrow">{{ eyebrow_text }}</div>
+        <h1 class="title">
+          {{ title_line_1 }}<br/>
+          <em>{{ title_line_2 }}</em>
+        </h1>
+        <p class="verdict">{{ verdict_html | safe }}</p>
+      </div>
+
+      {# ============== KPIs ============== #}
+      <section class="kpis">
+        {% for k in kpis %}
+        <div class="kpi">
+          <div class="kpi-label">{{ k.label }}</div>
+          <div class="kpi-value">
+            {% if k.null_text %}
+              <span class="null">{{ k.null_text }}</span>
+            {% else %}
+              {{ k.value }}{% if k.suffix %}<span class="suffix">{{ k.suffix }}</span>{% endif %}
+            {% endif %}
+          </div>
+          <div class="kpi-trend">
+            <span class="delta {{ k.tone }}">{{ k.delta }}</span>
+            <span>{{ k.trend_text }}</span>
+          </div>
+          {% if k.spark_svg_inner %}
+          <svg class="kpi-spark" viewBox="0 0 240 26" preserveAspectRatio="none">
+            {{ k.spark_svg_inner | safe }}
+          </svg>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </section>
+
+      {# ============== CALLS PER DAY ============== #}
+      <section class="section">
+        <div class="sec-head">
+          <div>
+            <div class="sec-num">01 — VOLUME</div>
+            <h2 class="sec-title">Calls <em>per day</em></h2>
+          </div>
+          <div class="sec-note">{{ cpd.note }}</div>
+        </div>
+
+        <div class="cpd">
+          <div class="cpd-chart">
+            <svg viewBox="0 0 720 220" preserveAspectRatio="none">
+              {{ cpd.chart_svg_inner | safe }}
+            </svg>
+          </div>
+
+          <aside class="cpd-side">
+            {% for stat in cpd.side_stats %}
+            <div class="cpd-stat">
+              <div class="k">{{ stat.label }}</div>
+              <div class="v">{{ stat.value }}{% if stat.unit %} <span class="unit">{{ stat.unit }}</span>{% endif %}</div>
+              <div class="hint">{{ stat.hint }}</div>
+            </div>
+            {% endfor %}
+          </aside>
+        </div>
+      </section>
+
+      {# ============== DISTRIBUTION TRIO ============== #}
+      <section class="section">
+        <div class="sec-head">
+          <div>
+            <div class="sec-num">02 — POSTURE</div>
+            <h2 class="sec-title">Outcome, risk &amp; <em>sentiment</em></h2>
+          </div>
+          <div class="sec-note">{{ trio.note }}</div>
+        </div>
+
+        <div class="trio">
+          {% for d in trio.donuts %}
+          <article class="dist">
+            <div class="dist-label">{{ d.label }}</div>
+            <div class="dist-title">{{ d.title }}</div>
+            <div class="dist-body">
+              <svg class="donut" viewBox="0 0 42 42">
+                {{ d.donut_svg_inner | safe }}
+                <text x="21" y="22.5" class="donut-center" font-size="11" text-anchor="middle">{{ d.center_value }}</text>
+                <text x="21" y="29" class="donut-center-sub" text-anchor="middle">{{ d.center_sub }}</text>
+              </svg>
+              <div class="dist-legend">
+                {% for L in d.legend %}
+                <div class="leg{% if L.dim %} dim{% endif %}">
+                  <span class="sw" style="background:{{ L.color }}{% if L.dim_swatch %};opacity:0.5{% endif %}"></span>
+                  <span class="name">{{ L.name }}</span>
+                  <span class="pct">{{ L.pct }}%</span>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+      </section>
+
+      {# ============== TOP CLOSERS ============== #}
+      <section class="section">
+        <div class="sec-head">
+          <div>
+            <div class="sec-num">03 — PEOPLE</div>
+            <h2 class="sec-title">Top <em>closers</em></h2>
+          </div>
+          <div class="sec-note">{{ leaderboard.note }}</div>
+        </div>
+
+        <div class="lead">
+          {% for row in leaderboard.rows %}
+          <div class="lead-row">
+            <div class="lead-rank">{{ row.rank }}</div>
+            <div class="lead-name">
+              <div class="lead-avatar{% if row.unattributed %} unattributed{% endif %}">{{ row.initial }}</div>
+              <div class="who{% if row.unattributed %} unattributed{% endif %}">{{ row.name }}{% if row.handle %}<span class="meta">{{ row.handle }}</span>{% endif %}</div>
+            </div>
+            <div class="lead-bar"><div class="fill{% if row.unattributed %} unattributed{% endif %}" style="width:{{ row.bar_pct }}%"></div></div>
+            <div class="lead-count">{{ row.count }}<span class="small">{{ row.unit }}</span></div>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      {# ============== RECENT CALLS ============== #}
+      <section class="section" style="border-bottom:none;">
+        <div class="sec-head">
+          <div>
+            <div class="sec-num">04 — LEDGER</div>
+            <h2 class="sec-title">Recent <em>calls</em></h2>
+          </div>
+          <div class="sec-note">{{ recent.note }}</div>
+        </div>
+
+        <div class="tbl-wrap">
+          <table class="recent">
+            <thead>
+              <tr>
+                <th>Call</th>
+                <th>When</th>
+                <th>Closer</th>
+                <th>Client</th>
+                <th>Duration</th>
+                <th>Objections</th>
+                <th>Buying signals</th>
+                <th>Next step</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for r in recent.rows %}
+              <tr>
+                <td class="cell-id"><span class="pre">{{ r.id_pre }}</span>{{ r.id_tail }}</td>
+                <td class="cell-time">
+                  <span class="date">{{ r.date }}</span>
+                  <span class="time">{{ r.time }}</span>
+                </td>
+                <td class="cell-name{% if r.closer_unattributed %} unattributed{% endif %}">{{ r.closer }}</td>
+                <td class="cell-name">{{ r.client }}</td>
+                <td class="cell-dur">{{ r.duration }}<span class="sec">  · {{ r.duration_secs }}s</span></td>
+                <td><span class="sig {{ r.obj_class }}"><span class="dot"></span>{{ r.objections }}</span></td>
+                <td><span class="sig {{ r.buy_class }}"><span class="dot"></span>{{ r.buying_signals }}</span></td>
+                <td>
+                  {% if r.next_step == 'yes' %}
+                    <span class="nxt yes"><span class="check">&#10003;</span>Secured</span>
+                  {% elif r.next_step == 'no' %}
+                    <span class="nxt no"><span class="check">&times;</span>Open</span>
+                  {% else %}
+                    <span class="nxt"><span class="check">·</span>{{ r.next_step_label or 'Pending' }}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {# ============== FOOTER ============== #}
+      <footer class="ftr">
+        <div class="mark"><span class="m">{{ brand_mark }}</span><span>{{ brand_footer_left }}</span></div>
+        <div class="mid">Render {{ render_short }} · static html · 1200 × auto</div>
+        <div>{{ brand_footer_right }}</div>
+      </footer>
+
+    </div>
+  </div>
+</div>
+</body>
+</html>

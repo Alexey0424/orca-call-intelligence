@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title_suffix %} · Calls{% endblock %}
+{% block body %}
+
+<div class="flex items-end justify-between mb-5">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Calls</h1>
+    <p class="text-sm text-muted">Every call ser-api has persisted. Click a row to drill in.</p>
+  </div>
+</div>
+
+<div class="card overflow-hidden">
+  <table class="tight stripe w-full text-sm">
+    <thead class="bg-thead text-[11px] uppercase tracking-wide text-muted">
+      <tr>
+        <th class="text-left">received</th>
+        <th class="text-left">call</th>
+        <th class="text-left">closer</th>
+        <th class="text-left">client</th>
+        <th class="text-right">dur</th>
+        <th class="text-right">coaching</th>
+        <th class="text-right">obj</th>
+        <th class="text-right">buy</th>
+        <th class="text-center">next step</th>
+        <th class="text-left">outcome</th>
+        <th class="text-left">asr</th>
+        <th class="text-left">llm</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for c in calls %}
+        {% set m = c.model_versions or {} %}
+        <tr class="row-hover">
+          <td class="mono text-xs text-muted">{{ c.received_at|fmt_ts }}</td>
+          <td><a class="text-accent hover:underline mono text-xs" href="/calls/{{ c.call_id }}">{{ c.call_id }}</a></td>
+          <td>{{ c.closer_name or '—' }}</td>
+          <td>{{ c.client_name or '—' }}</td>
+          <td class="mono text-right">{{ c.duration_sec|fmt_seconds }}</td>
+          <td class="mono text-right tabular-nums">
+            {% if c.coaching_score is not none %}{{ '%.0f' % c.coaching_score }}{% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td class="mono text-right tabular-nums">{{ c.objection_count or 0 }}</td>
+          <td class="mono text-right tabular-nums">{{ c.buying_signal_count or 0 }}</td>
+          <td class="text-center">{% if c.next_step_secured %}<span class="text-emerald-500">✓</span>{% else %}<span class="text-muted">·</span>{% endif %}</td>
+          <td>{{ c.predicted_outcome or '—' }}</td>
+          <td class="mono text-xs">{{ m.asr|default('—', true)|short_model }}</td>
+          <td class="mono text-xs">{{ m.llm|default('—', true)|short_model }}</td>
+          <td class="text-xs">
+            {% if c.pdf_url %}<a class="text-accent hover:underline" href="/calls/{{ c.call_id }}">open</a>{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+      {% if not calls %}
+        <tr><td colspan="13" class="text-center text-muted py-6">no calls persisted yet</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% endblock %}

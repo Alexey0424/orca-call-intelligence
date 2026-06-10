@@ -1,0 +1,15 @@
+# ── Core API + templating ────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+jinja2
+httpx
+pydantic>=2
+# Required by FastAPI Form(...) — used on the Models page POST.
+python-multipart
+
+# ── Postgres read-only (jobs / calls / utterances / events drill-down) ──────
+psycopg2-binary
+
+# ── Docker Engine API (container uptime + restart trigger) ──────────────────
+# httpx already speaks Unix domain sockets via httpx.HTTPTransport(uds=...).
+# We don't need the heavyweight `docker` SDK for the few endpoints we touch.

@@ -1,0 +1,157 @@
+{
+  "doc_title": "ORCA · Team Overview",
+  "theme": "paper",
+  "density": "regular",
+
+  "scope_pip": "T",
+  "scope_chip_text": "Team · Last 7 Days",
+  "generated_stamp": "Generated · 12 May 2026 · 21:48 UTC",
+  "eyebrow_text": "Weekly Overview · Cycle 19",
+
+  "title_line_1": "Two calls.",
+  "title_line_2": "Both pointed forward.",
+  "verdict_html": "The team closed <b>2 calls</b> across the last 7 days and a next step was secured on <b>every one</b>. Sentiment ran balanced — one client <b>stable</b>, one <b>improving</b> — with no detected declines. Coaching score sits in <b>cold-start</b> until the scoring backfill lands; expect first numerics next cycle.",
+
+  "kpis": [
+    {
+      "label": "Total Calls",
+      "value": "2",
+      "delta": "·",
+      "tone": "flat",
+      "trend_text": "All-time",
+      "spark": {"kind": "line", "points": [22, 22, 22, 22, 12, 4, 4],
+                "stroke": "var(--accent)", "endpoint_dot": true, "stroke_width": 1.4}
+    },
+    {
+      "label": "Calls · Last 7d",
+      "value": "2",
+      "delta": "+2",
+      "tone": "pos",
+      "trend_text": "vs prior week",
+      "spark": {"kind": "line", "points": [22, 22, 22, 22, 22, 16, 6, 6],
+                "stroke": "var(--ink)", "endpoint_dot": false, "stroke_width": 1.2}
+    },
+    {
+      "label": "Avg Coaching Score",
+      "null_text": "awaiting",
+      "delta": "—",
+      "tone": "flat",
+      "trend_text": "Scorer backfill pending",
+      "spark": {"kind": "flat-dashed"}
+    },
+    {
+      "label": "Next-Step Rate",
+      "value": "100",
+      "suffix": "%",
+      "delta": "2/2",
+      "tone": "pos",
+      "trend_text": "calls with follow-up",
+      "spark": {"kind": "fill-bar", "tint": "good"}
+    }
+  ],
+
+  "calls_per_day": {
+    "note": "A 7-day strip of recorded calls. Cycle ends Sunday; dotted line is the trailing average.",
+    "max_y": 3,
+    "show_avg_line": true,
+    "days": [
+      {"label": "Tue 5",  "value": 0, "active": false},
+      {"label": "Wed 6",  "value": 0, "active": false},
+      {"label": "Thu 7",  "value": 0, "active": false},
+      {"label": "Fri 8",  "value": 0, "active": false},
+      {"label": "Sat 9",  "value": 0, "active": false},
+      {"label": "Mon 11", "value": 1, "active": true},
+      {"label": "Tue 12", "value": 1, "active": true}
+    ],
+    "side_stats": [
+      {"label": "Active Days",   "value": "2",        "unit": "/ 7",
+       "hint": "First call landed Monday, 11 May."},
+      {"label": "Peak Day",      "value": "Tue · 12", "unit": null,
+       "hint": "1 call · 14m 50s total airtime."},
+      {"label": "Quiet Stretch", "value": "5",        "unit": "days",
+       "hint": "Tue–Sat, no calls logged."}
+    ]
+  },
+
+  "trio": {
+    "note": "How calls landed, where momentum is leaning, and where the model can't tell yet.",
+    "donuts": [
+      {
+        "label": "Outcome",
+        "title": "Distribution",
+        "center_value": "2",
+        "center_sub": "calls",
+        "segments": [
+          {"color": "var(--accent)", "pct": 50},
+          {"color": "var(--good)",   "pct": 50}
+        ],
+        "legend": [
+          {"color": "var(--good)",   "name": "Likely close",      "pct": 50},
+          {"color": "var(--accent)", "name": "Follow-up needed",  "pct": 50},
+          {"color": "var(--rule)",   "name": "Lost",              "pct": 0,  "dim": true}
+        ]
+      },
+      {
+        "label": "Risk",
+        "title": "Distribution",
+        "center_value": "2",
+        "center_sub": "unscored",
+        "segments": [
+          {"color": "var(--ink-mute)", "pct": 100, "opacity": 0.5}
+        ],
+        "legend": [
+          {"color": "var(--ink-mute)", "name": "Unknown", "pct": 100, "dim_swatch": true},
+          {"color": "var(--good)",     "name": "Low",     "pct": 0,   "dim": true},
+          {"color": "var(--bad)",      "name": "High",    "pct": 0,   "dim": true}
+        ]
+      },
+      {
+        "label": "Client Sentiment",
+        "title": "Trajectory",
+        "center_value": "2",
+        "center_sub": "clients",
+        "segments": [
+          {"color": "var(--sentiment-improving)", "pct": 50},
+          {"color": "var(--sentiment-stable)",    "pct": 50}
+        ],
+        "legend": [
+          {"color": "var(--sentiment-improving)", "name": "Improving",  "pct": 50},
+          {"color": "var(--sentiment-stable)",    "name": "Stable",     "pct": 50},
+          {"color": "var(--bad)",                 "name": "Declining",  "pct": 0, "dim": true}
+        ]
+      }
+    ]
+  },
+
+  "leaderboard": {
+    "note": "Volume ranking. \"Unknown\" buckets calls the diarizer couldn't attribute to a known voice profile.",
+    "rows": [
+      {"rank": "01", "initial": "E", "name": "Elias Clower", "handle": "elias.clower",
+       "bar_pct": 100, "count": 1, "unit": "call", "unattributed": false},
+      {"rank": "02", "initial": "?", "name": "Unattributed", "handle": "voice-id pending",
+       "bar_pct": 100, "count": 1, "unit": "call", "unattributed": true}
+    ]
+  },
+
+  "recent_calls": {
+    "note": "Most recent first. Open any row's report link for the full call breakdown.",
+    "rows": [
+      {"id_pre": "20260512-", "id_tail": "213411-535f9b8e",
+       "date": "12 May 2026", "time": "21:36",
+       "closer": "unattributed", "closer_unattributed": true,
+       "client": "Alicia",
+       "duration": "14:50", "duration_secs": 890,
+       "objections": 0, "obj_class": "zero",
+       "buying_signals": 3, "buy_class": "buy",
+       "next_step": "yes"},
+      {"id_pre": "20260512-", "id_tail": "212951-27b869ec",
+       "date": "12 May 2026", "time": "21:32",
+       "closer": "Elias Clower", "closer_unattributed": false,
+       "client": "Jonathan",
+       "duration": "06:37", "duration_secs": 397,
+       "objections": 2, "obj_class": "obj",
+       "buying_signals": 4, "buy_class": "buy",
+       "next_step": "yes"}
+    ]
+  }
+}

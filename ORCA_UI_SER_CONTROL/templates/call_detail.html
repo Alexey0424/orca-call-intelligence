@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title_suffix %} · Call {{ call.call_id }}{% endblock %}
+{% block body %}
+
+{% set m   = call.model_versions or {} %}
+{% set duration = call.duration_sec or 1 %}
+
+<div class="mb-5 flex items-start justify-between gap-4">
+  <div>
+    <a href="/calls" class="text-xs text-muted hover:text-ink">← all calls</a>
+    <h1 class="text-2xl font-semibold tracking-tight mt-1">
+      {{ call.closer_name or 'unknown closer' }}
+      <span class="text-muted">/ {{ call.client_name or 'unknown client' }}</span>
+    </h1>
+    <div class="text-sm text-muted mono">
+      {{ call.call_id }} · received {{ call.received_at|fmt_ts }} · {{ call.duration_sec|fmt_seconds }} ·
+      asr={{ m.asr|default('—', true)|short_model }} ·
+      llm={{ m.llm|default('—', true)|short_model }}
+    </div>
+  </div>
+  <form method="post" action="/calls/{{ call.call_id }}/delete" class="shrink-0"
+        onsubmit="return confirm('Delete this call permanently?\n\nRemoves the call, its utterances, events, pipeline runs, and on-disk report files. This cannot be undone.');">
+    <button type="submit"
+            class="text-xs px-3 py-1.5 rounded border border-rose-300 text-rose-600 hover:bg-rose-50">
+      Delete call (RTBF)
+    </button>
+  </form>
+</div>
+
+<!-- KPI cards -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">coaching</div><div class="text-2xl font-semibold tabular-nums">{{ '%.0f' % call.coaching_score if call.coaching_score is not none else '—' }}<span class="text-sm text-muted">/100</span></div></div>
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">outcome</div><div class="text-lg font-semibold">{{ call.predicted_outcome or '—' }}</div></div>
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">talk ratio (closer)</div><div class="text-2xl font-semibold tabular-nums">{{ '%.0f%%' % ((call.closer_talk_ratio or 0) * 100) }}</div></div>
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">objections</div><div class="text-2xl font-semibold text-rose-500 tabular-nums">{{ call.objection_count or 0 }}</div></div>
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">buying signals</div><div class="text-2xl font-semibold text-emerald-500 tabular-nums">{{ call.buying_signal_count or 0 }}</div></div>
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">next step</div><div class="text-lg font-semibold">{% if call.next_step_secured %}<span class="text-emerald-500">✓ secured</span>{% else %}<span class="text-muted">open</span>{% endif %}</div><div class="text-xs mt-1 text-muted">{{ call.next_step_text or '' }}</div></div>
+</div>
+
+<!-- Sentiment / emotion strip over time -->
+<div class="card p-4 mb-5">
+  <div class="text-xs uppercase tracking-wide text-muted mb-2">utterance strip</div>
+  {% if utterances %}
+    <div class="relative h-10 w-full bg-card-alt rounded border border-rule-soft overflow-hidden">
+      {% for u in utterances %}
+        {% set left  = (u.start_sec or 0) / duration * 100 %}
+        {% set width = ((u.end_sec or 0) - (u.start_sec or 0)) / duration * 100 %}
+        {% set ss = (u.sentiment_score or 0) %}
+        {% if ss > 0.2 %}{% set color = '#10B981' %}
+        {% elif ss < -0.2 %}{% set color = '#E11D48' %}
+        {% else %}{% set color = '#94A3B8' %}{% endif %}
+        <div class="absolute top-0 bottom-0 hover:opacity-90"
+             style="left: {{ left }}%; width: {{ width }}%; background: {{ color }};
+                    border-right: 1px solid rgba(0,0,0,0.05);"
+             title="{{ u.role or u.speaker }} · {{ u.sentiment_label }} · {{ u.emotion_label }}">
+        </div>
+      {% endfor %}
+    </div>
+    <div class="flex justify-between text-[10px] text-muted mono mt-1">
+      <span>0:00</span><span>{{ call.duration_sec|fmt_seconds }}</span>
+    </div>
+  {% else %}
+    <div class="text-sm text-muted">no utterances persisted for this call</div>
+  {% endif %}
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-5">
+  <!-- Transcript -->
+  <div class="lg:col-span-8">
+    <div class="card p-4">
+      <div class="flex justify-between items-baseline mb-3">
+        <div class="text-xs uppercase tracking-wide text-muted">transcript</div>
+        <div class="text-xs text-muted">{{ utterances|length }} utterances</div>
+      </div>
+      <div class="space-y-2 max-h-[60vh] overflow-y-auto pr-2">
+        {% for u in utterances %}
+          {% set role = u.role or u.speaker or '' %}
+          {% set is_closer = (role == 'closer') %}
+          <div class="rounded-lg p-3 text-sm border {% if is_closer %}bg-bubble-closer{% else %}bg-bubble-client{% endif %}">
+            <div class="flex justify-between text-[11px] text-muted mono mb-1">
+              <span>{{ role|upper }} · {{ u.speaker }} · {{ ('%02d:%02d' % ((u.start_sec or 0) // 60, (u.start_sec or 0) % 60)) }}</span>
+              <span>
+                {% if u.sentiment_label %}<span class="pill {% if u.sentiment_label == 'positive' %}bg-emerald-100 text-emerald-800{% elif u.sentiment_label == 'negative' %}bg-rose-100 text-rose-800{% else %}bg-slate-100 text-slate-700{% endif %}">{{ u.sentiment_label }}</span>{% endif %}
+                {% if u.emotion_label %}<span class="pill bg-violet-100 text-violet-800">{{ u.emotion_label }}</span>{% endif %}
+              </span>
+            </div>
+            <div>{{ u.text }}</div>
+          </div>
+        {% endfor %}
+        {% if not utterances %}
+          <div class="text-sm text-muted">no transcript persisted</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Events sidebar + summary -->
+  <div class="lg:col-span-4 space-y-4">
+    {% if call.summary %}
+      <div class="card p-4">
+        <div class="text-xs uppercase tracking-wide text-muted mb-2">summary</div>
+        <div class="text-sm leading-relaxed">{{ call.summary }}</div>
+      </div>
+    {% endif %}
+
+    {% for kind, items in events_by_kind.items() %}
+      <div class="card p-4">
+        <div class="text-xs uppercase tracking-wide text-muted mb-2">{{ kind }} <span class="text-muted">· {{ items|length }}</span></div>
+        <ul class="space-y-1 text-sm">
+          {% for e in items %}
+            <li>
+              <span class="text-muted mono text-xs">{{ ('%02d:%02d' % ((e.start_sec or 0) // 60, (e.start_sec or 0) % 60)) }}</span>
+              <span class="ml-2">{{ e.normalized or e.text }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endfor %}
+
+    <div class="card p-4">
+      <div class="text-xs uppercase tracking-wide text-muted mb-2">artifacts</div>
+      <div class="text-sm space-y-1">
+        {% if pdf_url %}<div><a class="text-accent hover:underline" href="{{ pdf_url }}" target="_blank">📄 open PDF</a></div>{% endif %}
+        {% if html_url %}<div><a class="text-accent hover:underline" href="{{ html_url }}" target="_blank">🌐 open HTML</a></div>{% endif %}
+        {% if not pdf_url and not html_url %}<div class="text-muted">no rendered artifacts on this call</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="card p-4">
+      <div class="text-xs uppercase tracking-wide text-muted mb-2">model lineage</div>
+      <pre class="text-[11px] mono overflow-auto">{{ m | tojson(indent=2) }}</pre>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

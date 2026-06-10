@@ -1,0 +1,62 @@
+# ── Core API ──────────────────────────────────────────────────────────────────
+fastapi
+uvicorn[standard]
+python-multipart
+httpx                  # Ollama LLM + embedding HTTP calls
+pydantic>=2
+
+# ── Database ──────────────────────────────────────────────────────────────────
+psycopg2-binary        # db.ensure_schema() creates all tables with plain DDL
+
+# ── Audio I/O ─────────────────────────────────────────────────────────────────
+numpy
+soundfile
+
+# ── ASR — Whisper-base via faster-whisper (English-only deployment) ─────────
+# faster-whisper is the CTranslate2-optimised port; ~3-5× quicker than the
+# reference Whisper implementation at the same accuracy. Weights are pulled
+# from Hugging Face into the hf_cache volume on first use.
+faster-whisper
+ctranslate2
+
+# ── Diarization + speaker fingerprinting (pyannote 4.x) ──────────────────────
+pyannote.audio==4.0.4
+huggingface_hub
+
+# ── Text sentiment (XLM-RoBERTa multilingual) ────────────────────────────────
+transformers>=4.40.0
+accelerate>=0.27.0
+
+# ── Speech emotion (emotion2vec+ via FunASR) ─────────────────────────────────
+# Both pinned. FunASR drives the inference; modelscope is its model-download
+# client. A modelscope minor bump moved the on-disk cache from
+# ~/.cache/modelscope/modelscope/hub/... to ~/.cache/modelscope/hub/...,
+# which on container recreate made the previously-cached 1.8 GB
+# emotion2vec_plus_large/model.pt invisible to the loader and triggered a
+# 2-hour fresh download from modelscope.cn. Pinning both protects the
+# modelscope_cache volume from re-downloads on future rebuilds.
+funasr==1.3.1
+modelscope==1.36.3
+
+# ── Entity extraction (GLiNER multilingual, zero-shot) ───────────────────────
+gliner>=0.2.13
+
+# ── Prosody (eGeMAPS-v02 functionals) ────────────────────────────────────────
+opensmile
+
+# ── PII redaction (local; no API calls) ──────────────────────────────────────
+# Microsoft Presidio. Detects PERSON / PHONE / EMAIL / LOCATION etc., we
+# persist both the raw text (for re-derivation) and the redacted variant.
+# Requires the spaCy en_core_web_sm model — installed in the Dockerfile.
+presidio-analyzer>=2.2
+presidio-anonymizer>=2.2
+spacy>=3.7
+
+# ── Resource sampling (control-panel per-stage GPU/CPU/RAM peaks) ────────────
+# psutil for process + system CPU/RAM; VRAM peak from torch peak-stats;
+# nvidia-ml-py (NVML) for whole-card GPU compute utilization.
+psutil
+nvidia-ml-py
+
+# ── Tests (small, included so `pytest` works inside the container) ────────────
+pytest>=7

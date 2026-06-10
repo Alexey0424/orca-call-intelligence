@@ -1,0 +1,14 @@
+ORCA — Self-hosted Speech Emotion Recognition pipeline
+Copyright 2026 Alexey Velasquez
+
+This product includes software that began as a derivative of the
+n8n Self-hosted AI Starter Kit
+(https://github.com/n8n-io/self-hosted-ai-starter-kit),
+Copyright n8n GmbH, licensed under the Apache License, Version 2.0.
+
+Substantial original work has been added on top, including the
+call-analysis-api, rag-api, render-api, and ORCA_UI_SER_CONTROL
+services, the shared ragcore package, and the
+speech-emotion-recognition data pipeline.
+
+Licensed under the Apache License, Version 2.0 (see LICENSE).

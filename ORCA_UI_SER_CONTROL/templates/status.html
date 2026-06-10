@@ -1,0 +1,232 @@
+{% extends "base.html" %}
+{% block title_suffix %} · Control Panel{% endblock %}
+{% block body %}
+
+<div class="flex items-end justify-between mb-5 gap-4 flex-wrap">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Control Panel</h1>
+    <p class="text-sm text-muted">Live state of the SER pipeline · pick Current to watch the running job, or History to inspect a past run.</p>
+  </div>
+
+  <div class="flex items-center gap-3 flex-wrap">
+    <!-- Mode toggle -->
+    <form method="get" action="/" class="inline-flex bg-card border border-rule-soft rounded-lg overflow-hidden">
+      <button name="mode" value="current"
+              class="px-3 py-1.5 text-sm transition-colors {% if mode == 'current' %}bg-ink text-paper{% else %}hover:bg-card-alt{% endif %}">
+        Current
+      </button>
+      <button name="mode" value="history"
+              class="px-3 py-1.5 text-sm transition-colors {% if mode in ['history','history-missing'] %}bg-ink text-paper{% else %}hover:bg-card-alt{% endif %}">
+        History
+      </button>
+    </form>
+
+    {% if mode in ['history','history-missing'] %}
+      <form method="get" action="/" class="flex items-center gap-2">
+        <input type="hidden" name="mode" value="history" />
+        <select name="run" class="bg-card border border-rule-soft rounded px-2 py-1 text-sm font-mono"
+                onchange="this.form.submit()">
+          <option value="">— pick a run —</option>
+          {% for h in history %}
+            <option value="{{ h.run_no }}" {% if selected_run == h.run_no %}selected{% endif %}>
+              #{{ '%04d' % h.run_no }} · {{ h.status }} · {{ h.file_name or '—' }} · {{ h.started_at[:19] if h.started_at else '' }}
+            </option>
+          {% endfor %}
+        </select>
+      </form>
+    {% endif %}
+
+    <!-- Direct file upload → scorecard (no n8n needed) -->
+    <label id="run-label" class="btn btn-primary cursor-pointer">
+      <span id="run-label-text">▶ Run scorecard</span>
+      <input id="upload-input" type="file" name="file"
+             accept=".mp3,.wav,.m4a,.ogg,.flac,.mp4,.aac,.opus,.webm"
+             class="hidden" />
+    </label>
+    <span id="upload-status" class="text-xs mono text-muted"></span>
+
+    <!-- Eject — hidden until the polling sees a running job -->
+    <button id="eject-btn" style="display:none" class="btn btn-danger">
+      ⏏ Eject
+    </button>
+
+    <!-- n8n trigger (separate path — only if N8N_WEBHOOK_URL is configured) -->
+    {% if trigger_enabled %}
+      <button hx-post="/control/trigger" hx-swap="none"
+              hx-on::after-request="if(event.detail.successful) showToast('▶ n8n triggered', 'info');"
+              class="btn btn-ghost">via n8n</button>
+    {% else %}
+      <button disabled title="Set N8N_WEBHOOK_URL in docker-compose.yml to enable"
+              class="btn btn-ghost">via n8n</button>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ser-api health card -->
+<div hx-get="/_partial/service" hx-trigger="load, every 4s" hx-swap="innerHTML">
+  {% include "partials/_service_card.html" %}
+</div>
+
+<!-- Aggregate stats row (Total / Running / Done / Failed / Avg duration) -->
+<div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">total runs</div><div class="text-2xl font-semibold tabular-nums">{{ summary.total or 0 }}</div></div>
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">running</div><div class="text-2xl font-semibold text-amber-500 tabular-nums">{{ summary.running_count or 0 }}</div></div>
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">done</div><div class="text-2xl font-semibold text-emerald-500 tabular-nums">{{ summary.done_count or 0 }}</div></div>
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">failed</div><div class="text-2xl font-semibold text-rose-500 tabular-nums">{{ summary.failed_count or 0 }}</div></div>
+  <div class="card p-3"><div class="text-[10px] uppercase text-muted">avg duration</div><div class="text-2xl font-semibold tabular-nums">{{ summary.avg_duration_sec|fmt_seconds }}</div></div>
+</div>
+
+<!-- Drag-and-drop affordance — sits above the control panel so it's the obvious target for tossing a file in -->
+<div id="dropzone"
+     class="card dropzone border-2 border-dashed border-rule-soft p-4 mb-4 flex items-center justify-center text-sm text-muted gap-3">
+  <span>📂</span>
+  <span><strong class="text-ink">Drop an audio file anywhere</strong> to start a scorecard run, or click the button above.</span>
+</div>
+
+<!-- Live resource curves — persistent (NOT inside the 2s-swapped panel div)
+     so the client-side sample history survives across polls. -->
+{% include "partials/_resource_graphs.html" %}
+
+<!-- The CONTROL PANEL itself — polled by HTMX every 2s when current,
+     once-loaded when history. -->
+<div hx-get="/_partial/control-panel?mode={{ mode }}{% if selected_run %}&run={{ selected_run }}{% endif %}"
+     {% if mode == 'current' %}hx-trigger="load, every 2s"{% else %}hx-trigger="load"{% endif %}
+     hx-swap="innerHTML">
+  {% include "partials/_control_panel.html" %}
+</div>
+
+<script>
+  // ── Upload button + drag-and-drop → POST /control/run-scorecard ────────
+  (function () {
+    const input      = document.getElementById('upload-input');
+    const label      = document.getElementById('run-label');
+    const labelText  = document.getElementById('run-label-text');
+    const status     = document.getElementById('upload-status');
+    const eject      = document.getElementById('eject-btn');
+    const dropzone   = document.getElementById('dropzone');
+
+    let running = false;
+
+    function setRunningUI(d) {
+      if (d.running) {
+        running = true;
+        input.disabled = true;
+        label.classList.remove('btn-primary');
+        label.classList.add('btn-ghost');
+        label.style.cursor = 'not-allowed';
+        labelText.textContent =
+          `⏳ Running #${d.run_no} · ${d.stage || '…'} · ${Math.round(d.elapsed || 0)}s`;
+        eject.style.display = 'inline-flex';
+      } else {
+        running = false;
+        input.disabled = false;
+        label.classList.add('btn-primary');
+        label.classList.remove('btn-ghost');
+        label.style.cursor = 'pointer';
+        labelText.textContent = '▶ Run scorecard';
+        eject.style.display = 'none';
+      }
+    }
+
+    // ── Button-state poller (every 1.5s) ───────────────────────────────────
+    async function poll() {
+      try {
+        const r = await fetch('/control/status', {cache: 'no-store'});
+        const d = await r.json();
+        setRunningUI(d);
+      } catch (e) { /* swallow */ }
+    }
+    poll();
+    setInterval(poll, 1500);
+
+    // ── Shared upload routine ─────────────────────────────────────────────
+    async function uploadFile(f) {
+      if (running) {
+        showToast('⏳ a job is already running — eject it first', 'err');
+        return;
+      }
+      status.textContent = `uploading ${f.name} (${(f.size/1024/1024).toFixed(1)} MB) — pipeline runs 1-3 min…`;
+      const fd = new FormData(); fd.append('file', f);
+      try {
+        const r = await fetch('/control/run-scorecard', {method: 'POST', body: fd});
+        const data = await r.json();
+        if (data.ok) {
+          status.innerHTML = `✓ done in ${data.duration_sec ? data.duration_sec.toFixed(1) : '?'}s &middot; ` +
+                             `<a class="text-accent underline" href="/calls/${data.call_id}">open call</a>`;
+          showToast('✓ scorecard complete', 'ok');
+        } else {
+          const err = data.detail || data.error || `HTTP ${data.status_code}`;
+          status.textContent = '✗ ' + err;
+          showToast('✗ ' + err, 'err');
+        }
+      } catch (err) {
+        status.textContent = '✗ ' + err;
+        showToast('✗ ' + err, 'err');
+      } finally {
+        input.value = '';
+        poll();
+      }
+    }
+
+    input.addEventListener('change', () => {
+      if (!input.files || !input.files[0] || input.disabled) return;
+      uploadFile(input.files[0]);
+    });
+
+    // Allow the empty-state's inline picker to feed back into our handler.
+    input.addEventListener('proxy-file', (e) => {
+      const f = e.detail && e.detail[0];
+      if (f) uploadFile(f);
+    });
+
+    // ── Drag-and-drop on the whole page (with visible dropzone) ───────────
+    function preventDefaults(e) { e.preventDefault(); e.stopPropagation(); }
+    ['dragenter','dragover','dragleave','drop'].forEach(ev => {
+      document.addEventListener(ev, preventDefaults);
+    });
+    let dragCounter = 0;
+    document.addEventListener('dragenter', () => {
+      dragCounter++;
+      dropzone.classList.add('is-drag');
+    });
+    document.addEventListener('dragleave', () => {
+      dragCounter = Math.max(0, dragCounter - 1);
+      if (dragCounter === 0) dropzone.classList.remove('is-drag');
+    });
+    document.addEventListener('drop', (e) => {
+      dragCounter = 0;
+      dropzone.classList.remove('is-drag');
+      const files = e.dataTransfer && e.dataTransfer.files;
+      if (files && files[0]) uploadFile(files[0]);
+    });
+
+    // ── Eject handler ──────────────────────────────────────────────────────
+    eject.addEventListener('click', async () => {
+      if (!confirm('Eject the running job? This marks it failed AND restarts ser-api (cold-start follows, ~30-60s).')) return;
+      eject.disabled = true;
+      eject.textContent = 'ejecting…';
+      status.textContent = '⏏ ejecting…';
+      try {
+        const r = await fetch('/control/eject', {method: 'POST'});
+        const d = await r.json();
+        if (d.ok) {
+          showToast(`⏏ ejected (${d.demoted} demoted, ser-api restarting)`, 'info');
+          status.textContent = '⏏ ejected — ser-api restarting';
+        } else {
+          const msg = d.error || 'eject failed';
+          status.textContent = '✗ ' + msg;
+          showToast('✗ ' + msg, 'err');
+        }
+      } catch (e) {
+        status.textContent = '✗ ' + e;
+        showToast('✗ ' + e, 'err');
+      } finally {
+        eject.disabled = false;
+        eject.textContent = '⏏ Eject';
+        poll();
+      }
+    });
+  })();
+</script>
+
+{% endblock %}

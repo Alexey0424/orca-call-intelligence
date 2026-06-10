@@ -1,0 +1,434 @@
+{% extends "base.html" %}
+{% block title_suffix %} · Database{% endblock %}
+{% block body %}
+
+<div class="flex items-end justify-between mb-5 gap-4 flex-wrap">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Database</h1>
+    <p class="text-sm text-muted">Browse the three Postgres databases on this stack, or run ad-hoc SQL. Read-only by default.</p>
+  </div>
+
+  <!-- Tab switch -->
+  <div class="inline-flex bg-card border border-rule-soft rounded-lg overflow-hidden">
+    <a href="/db?tab=browser"
+       class="px-3 py-1.5 text-sm transition-colors {% if tab == 'browser' %}bg-ink text-paper{% else %}hover:bg-card-alt{% endif %}">
+      🗂  Browser
+    </a>
+    <a href="/db?tab=query{% if selected_db %}&database={{ selected_db }}{% endif %}"
+       class="px-3 py-1.5 text-sm transition-colors {% if tab == 'query' %}bg-ink text-paper{% else %}hover:bg-card-alt{% endif %}">
+      ▶  Query
+    </a>
+  </div>
+</div>
+
+{# ─────────────────────────────────────────────────────────────────────── #}
+{# BROWSER TAB                                                              #}
+{# ─────────────────────────────────────────────────────────────────────── #}
+{% if tab == 'browser' %}
+
+<div class="grid grid-cols-12 gap-4">
+
+  {# ── LEFT RAIL: databases ─────────────────────────────────────────── #}
+  <aside class="col-span-3 card p-0 overflow-hidden">
+    <div class="px-3 py-2 border-b border-rule-soft bg-card-alt text-[11px] uppercase tracking-wide text-muted">
+      Databases
+    </div>
+    <ul class="divide-y divide-rule-soft">
+      {% for d in databases %}
+        <li>
+          <a href="/db?tab=browser&database={{ d.name }}"
+             class="flex items-center justify-between px-3 py-2 hover:bg-card-alt transition-colors
+                    {% if selected_db == d.name %}bg-card-alt{% endif %}">
+            <div>
+              <div class="font-medium mono">{{ d.name }}</div>
+              <div class="text-[11px] text-muted mono">
+                {{ d.table_count if d.table_count is not none else '—' }} tables
+              </div>
+            </div>
+            <div class="text-right">
+              <div class="text-xs mono tabular-nums">{{ d.size_pretty }}</div>
+            </div>
+          </a>
+        </li>
+      {% endfor %}
+    </ul>
+  </aside>
+
+  {# ── MIDDLE RAIL: tables of selected DB ───────────────────────────── #}
+  <section class="col-span-4 card p-0 overflow-hidden">
+    <div class="px-3 py-2 border-b border-rule-soft bg-card-alt flex items-center justify-between">
+      <div class="text-[11px] uppercase tracking-wide text-muted">Tables</div>
+      {% if selected_db %}
+        <span class="text-[11px] mono text-muted">{{ selected_db }} · {{ tables|length }}</span>
+      {% endif %}
+    </div>
+    {% if not selected_db %}
+      <div class="p-6 text-center text-sm text-muted">
+        Pick a database on the left to see its tables.
+      </div>
+    {% elif not tables %}
+      <div class="p-6 text-center text-sm text-muted">
+        No tables in <span class="mono">{{ selected_db }}</span>.
+      </div>
+    {% else %}
+      <ul class="divide-y divide-rule-soft max-h-[70vh] overflow-auto">
+        {% for t in tables %}
+          <li>
+            <a href="/db?tab=browser&database={{ selected_db }}&schema={{ t.schema }}&table={{ t.name }}"
+               class="flex items-center justify-between px-3 py-2 hover:bg-card-alt transition-colors
+                      {% if selected_table == t.name and selected_schema == t.schema %}bg-card-alt{% endif %}">
+              <div class="min-w-0 mr-2">
+                <div class="font-medium mono truncate">{{ t.name }}</div>
+                <div class="text-[11px] text-muted mono">
+                  {% if t.schema != 'public' %}{{ t.schema }} · {% endif %}{{ '{:,}'.format(t.row_estimate) }} rows
+                </div>
+              </div>
+              <div class="text-right shrink-0">
+                <div class="text-xs mono tabular-nums">{{ t.size_total_pretty }}</div>
+                <div class="text-[10px] mono text-muted">
+                  {{ t.size_heap_pretty }} + {{ t.size_index_pretty }} idx
+                </div>
+              </div>
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  </section>
+
+  {# ── RIGHT PANE: table detail + preview ───────────────────────────── #}
+  <section class="col-span-5 space-y-4">
+    {% if not table_detail %}
+      <div class="card p-6 text-center text-sm text-muted">
+        Pick a table to see its columns, indexes, and the first 50 rows.
+      </div>
+    {% else %}
+      {# ── Header strip ── #}
+      <div class="card p-4">
+        <div class="flex items-baseline justify-between gap-3 flex-wrap">
+          <div>
+            <div class="text-[11px] uppercase tracking-wide text-muted">Table</div>
+            <div class="text-xl font-semibold mono">
+              {% if table_detail.schema != 'public' %}<span class="text-muted">{{ table_detail.schema }}.</span>{% endif %}{{ table_detail.name }}
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-[11px] uppercase tracking-wide text-muted">total</div>
+            <div class="text-xl font-semibold mono tabular-nums">{{ table_detail.size_total_pretty }}</div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-3 gap-2 mt-3 text-xs mono">
+          <div class="bg-card-alt rounded p-2">
+            <div class="text-[10px] uppercase text-muted">heap</div>
+            <div class="tabular-nums">{{ table_detail.size_heap_pretty }}</div>
+          </div>
+          <div class="bg-card-alt rounded p-2">
+            <div class="text-[10px] uppercase text-muted">indexes</div>
+            <div class="tabular-nums">{{ table_detail.size_index_pretty }}</div>
+          </div>
+          <div class="bg-card-alt rounded p-2">
+            <div class="text-[10px] uppercase text-muted">rows (est)</div>
+            <div class="tabular-nums">{{ '{:,}'.format(table_detail.row_estimate) }}</div>
+          </div>
+        </div>
+
+        <div class="mt-3">
+          <a href="/db?tab=query&database={{ selected_db }}&prefill=SELECT * FROM {{ table_detail.schema }}.{{ table_detail.name }} LIMIT 100;"
+             class="text-xs text-accent hover:underline">▶ open in Query tab →</a>
+        </div>
+      </div>
+
+      {# ── Columns ── #}
+      <details class="card p-4" open>
+        <summary class="cursor-pointer font-medium text-sm">
+          Columns <span class="text-muted">({{ table_detail.columns|length }})</span>
+        </summary>
+        <table class="w-full text-xs mt-3 mono">
+          <thead class="text-[10px] uppercase text-muted">
+            <tr>
+              <th class="text-left py-1 pr-2">name</th>
+              <th class="text-left py-1 pr-2">type</th>
+              <th class="text-left py-1 pr-2">nullable</th>
+              <th class="text-left py-1">default</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in table_detail.columns %}
+              <tr class="border-t border-rule-soft">
+                <td class="py-1 pr-2 font-medium">{{ c.column_name }}</td>
+                <td class="py-1 pr-2 text-muted">
+                  {{ c.data_type }}{% if c.udt_name and c.udt_name != c.data_type %} · {{ c.udt_name }}{% endif %}{% if c.character_maximum_length %}({{ c.character_maximum_length }}){% endif %}
+                </td>
+                <td class="py-1 pr-2 text-muted">{{ c.is_nullable }}</td>
+                <td class="py-1 text-muted truncate" style="max-width: 240px;" title="{{ c.column_default }}">
+                  {{ c.column_default or '—' }}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </details>
+
+      {# ── Indexes ── #}
+      {% if table_detail.indexes %}
+      <details class="card p-4">
+        <summary class="cursor-pointer font-medium text-sm">
+          Indexes <span class="text-muted">({{ table_detail.indexes|length }})</span>
+        </summary>
+        <ul class="mt-3 space-y-2 text-xs mono">
+          {% for ix in table_detail.indexes %}
+            <li class="border-l-2 border-rule-soft pl-2">
+              <div class="font-medium">{{ ix.indexname }}</div>
+              <div class="text-muted break-all">{{ ix.indexdef }}</div>
+            </li>
+          {% endfor %}
+        </ul>
+      </details>
+      {% endif %}
+
+      {# ── Preview rows (auto-loaded) ── #}
+      <div class="card p-4">
+        <div class="flex items-center justify-between mb-2">
+          <div class="font-medium text-sm">
+            Preview <span class="text-muted">first 50 rows</span>
+          </div>
+          {% if preview %}
+            <div class="text-[11px] mono text-muted">{{ preview.row_count }} rows · {{ preview.elapsed_ms }} ms</div>
+          {% endif %}
+        </div>
+        {% if not preview %}
+          <div class="text-sm text-muted p-3">No preview available.</div>
+        {% elif preview.row_count == 0 %}
+          <div class="text-sm text-muted p-3">Empty table.</div>
+        {% else %}
+          <div class="overflow-auto max-h-[60vh] border border-rule-soft rounded">
+            <table class="text-xs mono w-max min-w-full">
+              <thead class="bg-card-alt sticky top-0 z-10">
+                <tr>
+                  {% for c in preview.columns %}
+                    <th class="text-left px-2 py-1.5 text-[10px] uppercase text-muted border-b border-rule-soft whitespace-nowrap">{{ c }}</th>
+                  {% endfor %}
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in preview.rows %}
+                  <tr class="border-b border-rule-soft hover:bg-card-alt">
+                    {% for v in row %}
+                      <td class="px-2 py-1 align-top whitespace-pre-wrap break-words max-w-[40ch]">
+                        {%- if v is none -%}
+                          <span class="text-muted italic">null</span>
+                        {%- elif v is mapping or (v is iterable and v is not string) -%}
+                          <span class="text-accent">{{ v|tojson }}</span>
+                        {%- else -%}
+                          {{ v }}
+                        {%- endif -%}
+                      </td>
+                    {% endfor %}
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+  </section>
+
+</div>
+
+
+{# ─────────────────────────────────────────────────────────────────────── #}
+{# QUERY TAB                                                                #}
+{# ─────────────────────────────────────────────────────────────────────── #}
+{% else %}
+
+<div class="grid grid-cols-12 gap-4">
+
+  {# ── Editor + result ─────────────────────────────────────────────── #}
+  <section class="col-span-9 space-y-4">
+
+    <form id="qform" class="card p-4 space-y-3"
+          hx-post="/db/query"
+          hx-target="#qresult"
+          hx-swap="innerHTML"
+          hx-indicator="#qspinner">
+      <div class="flex items-center gap-3 flex-wrap">
+        <label class="text-sm font-medium">Database</label>
+        <select name="database" class="bg-card border border-rule-soft rounded px-2 py-1 text-sm mono">
+          {% for d in databases %}
+            <option value="{{ d.name }}" {% if selected_db == d.name %}selected{% endif %}>{{ d.name }}</option>
+          {% endfor %}
+        </select>
+
+        <label class="inline-flex items-center gap-2 text-sm ml-2">
+          <input type="checkbox" name="write_mode" value="1" id="qwrite" />
+          <span>Write mode</span>
+        </label>
+        <span id="qwrite-warn" class="text-[11px] text-rose-500" style="display:none">⚠ writes allowed — be careful</span>
+
+        <div class="ml-auto flex items-center gap-2">
+          <span id="qspinner" class="htmx-indicator text-xs text-muted">running…</span>
+          <button type="submit" class="btn btn-primary">▶ Run <span class="opacity-60 ml-1">(Ctrl+Enter)</span></button>
+        </div>
+      </div>
+
+      <textarea name="sql" id="qsql"
+                class="w-full mono text-sm bg-card-alt border border-rule-soft rounded p-3 leading-snug"
+                rows="10"
+                spellcheck="false"
+                placeholder="-- e.g. SELECT * FROM calls ORDER BY received_at DESC LIMIT 20;"
+                >{{ prefill or '' }}</textarea>
+    </form>
+
+    <div id="qresult">
+      <div class="card p-6 text-center text-sm text-muted">
+        Results will appear here. <span class="mono">Ctrl+Enter</span> runs the query.
+      </div>
+    </div>
+  </section>
+
+  {# ── Right rail: presets + history ───────────────────────────────── #}
+  <aside class="col-span-3 space-y-4">
+    <div class="card p-0 overflow-hidden">
+      <div class="px-3 py-2 border-b border-rule-soft bg-card-alt text-[11px] uppercase tracking-wide text-muted">
+        Presets
+      </div>
+      <ul class="divide-y divide-rule-soft">
+        {% for p in presets %}
+          <li>
+            <button type="button"
+                    class="w-full text-left px-3 py-2 hover:bg-card-alt transition-colors"
+                    data-preset='{{ p.body|tojson }}'>
+              <div class="font-medium text-sm mono">{{ p.name }}</div>
+              {% if p.description %}
+                <div class="text-[11px] text-muted">{{ p.description }}</div>
+              {% endif %}
+            </button>
+          </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card p-0 overflow-hidden">
+      <div class="px-3 py-2 border-b border-rule-soft bg-card-alt flex items-center justify-between">
+        <span class="text-[11px] uppercase tracking-wide text-muted">History</span>
+        <button id="qhist-clear" class="text-[11px] text-muted hover:text-rose-500">clear</button>
+      </div>
+      <ul id="qhist" class="divide-y divide-rule-soft max-h-[40vh] overflow-auto">
+        <li class="px-3 py-2 text-xs text-muted">No history yet.</li>
+      </ul>
+    </div>
+  </aside>
+
+</div>
+
+<script>
+  // ── Query tab wiring ──────────────────────────────────────────────────
+  (function () {
+    const ta       = document.getElementById('qsql');
+    const form     = document.getElementById('qform');
+    const writeCb  = document.getElementById('qwrite');
+    const writeWarn= document.getElementById('qwrite-warn');
+    const histUl   = document.getElementById('qhist');
+    const histBtn  = document.getElementById('qhist-clear');
+
+    // Ctrl+Enter / Cmd+Enter submits the form, anywhere in the textarea.
+    ta.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        form.requestSubmit();
+      }
+    });
+
+    // Toggle visual red-edge on write mode.
+    function applyWriteStyle() {
+      if (writeCb.checked) {
+        ta.style.borderColor = '#E11D48';
+        ta.style.boxShadow   = '0 0 0 2px rgba(225,29,72,.15)';
+        writeWarn.style.display = '';
+      } else {
+        ta.style.borderColor = '';
+        ta.style.boxShadow   = '';
+        writeWarn.style.display = 'none';
+      }
+    }
+    writeCb.addEventListener('change', () => {
+      if (writeCb.checked && !confirm('Enable write mode? UPDATE / DELETE / DDL will run against the live database.')) {
+        writeCb.checked = false;
+      }
+      applyWriteStyle();
+    });
+    applyWriteStyle();
+
+    // Presets → load into textarea.
+    document.querySelectorAll('[data-preset]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        try {
+          ta.value = JSON.parse(btn.getAttribute('data-preset'));
+          ta.focus();
+        } catch (e) {}
+      });
+    });
+
+    // History stored in localStorage (per database).
+    const HKEY = 'orca_db_history';
+    function readHist() {
+      try { return JSON.parse(localStorage.getItem(HKEY) || '[]'); }
+      catch (e) { return []; }
+    }
+    function writeHist(arr) {
+      try { localStorage.setItem(HKEY, JSON.stringify(arr.slice(0, 50))); }
+      catch (e) {}
+    }
+    function renderHist() {
+      const items = readHist();
+      if (!items.length) {
+        histUl.innerHTML = '<li class="px-3 py-2 text-xs text-muted">No history yet.</li>';
+        return;
+      }
+      histUl.innerHTML = items.map((h, i) => `
+        <li>
+          <button type="button" data-idx="${i}"
+                  class="w-full text-left px-3 py-2 hover:bg-card-alt transition-colors">
+            <div class="text-[10px] text-muted mono">${h.db} · ${h.when}</div>
+            <div class="text-xs mono truncate">${(h.sql || '').replace(/\s+/g,' ').slice(0,80)}</div>
+          </button>
+        </li>
+      `).join('');
+      histUl.querySelectorAll('button[data-idx]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const idx = parseInt(btn.getAttribute('data-idx'), 10);
+          const items = readHist();
+          if (items[idx]) {
+            ta.value = items[idx].sql;
+            const dbSel = form.querySelector('[name=database]');
+            if (dbSel) dbSel.value = items[idx].db;
+          }
+        });
+      });
+    }
+    histBtn.addEventListener('click', () => {
+      if (confirm('Clear query history?')) { writeHist([]); renderHist(); }
+    });
+    renderHist();
+
+    // After every successful run, push to history.
+    form.addEventListener('htmx:afterRequest', (e) => {
+      if (!e.detail.successful) return;
+      const sql = ta.value.trim();
+      if (!sql) return;
+      const db = form.querySelector('[name=database]').value;
+      const items = readHist();
+      // Skip exact-duplicate consecutive entries.
+      if (items.length && items[0].sql === sql && items[0].db === db) return;
+      items.unshift({db, sql, when: new Date().toLocaleString()});
+      writeHist(items);
+      renderHist();
+    });
+  })();
+</script>
+
+{% endif %}
+
+{% endblock %}

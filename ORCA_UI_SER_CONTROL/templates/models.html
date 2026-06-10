@@ -1,0 +1,395 @@
+{% extends "base.html" %}
+{% block title_suffix %} · Models{% endblock %}
+{% block body %}
+
+<div class="flex items-end justify-between mb-5 gap-4 flex-wrap">
+  <div>
+    <h1 class="text-2xl font-semibold tracking-tight">Models</h1>
+    <p class="text-sm text-muted">Audio models <strong class="text-ink">hot-swap on Apply</strong> — no container restart needed. Ollama models pick up the next request. Click an option below to see whether it's already cached on disk.</p>
+  </div>
+  <form method="post" action="/restart-ser-api" onsubmit="return confirm('Restart ser-api now? Cold-start takes ~30–60s. Only needed as a recovery hatch — normal swaps go through Apply.');">
+    <button class="btn btn-ghost" title="Hard recovery — use only if hot-swap got wedged">restart ser-api</button>
+  </form>
+</div>
+
+{# Helpers ─────────────────────────────────────────────────────────────── #}
+{% macro live(role, fallback='—') -%}
+  {{ (ser_health.models if ser_health and ser_health.ok else {}).get(role) or fallback }}
+{%- endmacro %}
+
+{% macro size_pretty(n) -%}
+  {% if not n %}—
+  {% elif n < 1024 %}{{ n }} B
+  {% elif n < 1048576 %}{{ '%.0f' % (n / 1024) }} KB
+  {% elif n < 1073741824 %}{{ '%.0f' % (n / 1048576) }} MB
+  {% else %}{{ '%.1f' % (n / 1073741824) }} GB
+  {% endif %}
+{%- endmacro %}
+
+{# Render the cache-state line for the currently selected option in a
+   dropdown. ``role`` selects which cache bucket we read; ``selected``
+   is the model id whose status we surface. #}
+{% macro cache_line(role, selected, fallback_choices) -%}
+  {% set bucket = cache.get(role) or {} %}
+  {% set sel = selected or fallback_choices[0] %}
+  {% set st = bucket.get(sel) or {} %}
+  {% if st.cached %}
+    <span class="text-emerald-600">✓ cached · {{ size_pretty(st.size_bytes) }}</span>
+  {% else %}
+    <span class="text-amber-600">⤓ not yet downloaded — first swap will pull</span>
+  {% endif %}
+{%- endmacro %}
+
+<form method="post" action="/models" id="models-form" class="space-y-4">
+
+  {# ── Audio models ───────────────────────────────────────────────────── #}
+  <div class="card p-5">
+    <h2 class="text-lg font-semibold mb-1">Audio models <span class="text-xs text-muted font-normal">— hot-swap inside ser-api's GPU lock</span></h2>
+    <p class="text-xs text-muted mb-4">Swapping evicts the previous variant from VRAM and loads the new one. Uncached models pull from Hugging Face / ModelScope on first swap; subsequent swaps to the same id are seconds.</p>
+
+    <div class="grid grid-cols-12 gap-4 items-center">
+
+      {# ASR #}
+      <label class="col-span-2 text-sm font-medium">ASR (Whisper)</label>
+      <select id="sel-asr" name="WHISPER_MODEL_ID"
+              class="col-span-5 bg-card border border-rule-soft rounded px-2 py-1 mono">
+        <option value="">(no override — use env default)</option>
+        {% for m in asr_choices %}
+          {% set st = (cache.asr or {}).get(m) or {} %}
+          <option value="{{ m }}" {% if overrides.WHISPER_MODEL_ID == m %}selected{% endif %}>
+            {{ m }}{% if st.cached %} ✓{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="col-span-5 text-xs mono space-y-0.5">
+        <div>live: <span class="text-ink">{{ live('asr') }}</span></div>
+        <div>override: <span class="text-ink">{{ overrides.WHISPER_MODEL_ID or '—' }}</span></div>
+        <div id="cache-asr" class="text-muted">{{ cache_line('asr', overrides.WHISPER_MODEL_ID, asr_choices) }}</div>
+      </div>
+
+      {# Diarization #}
+      <label class="col-span-2 text-sm font-medium">Diarization</label>
+      <select id="sel-diar" name="DIARIZATION_MODEL_ID"
+              class="col-span-5 bg-card border border-rule-soft rounded px-2 py-1 mono">
+        <option value="">(no override — use env default)</option>
+        {% for m in diar_choices %}
+          {% set st = (cache.diarization or {}).get(m) or {} %}
+          <option value="{{ m }}" {% if overrides.DIARIZATION_MODEL_ID == m %}selected{% endif %}>
+            {{ m }}{% if st.cached %} ✓{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="col-span-5 text-xs mono space-y-0.5">
+        <div>live: <span class="text-ink">{{ live('diarization') }}</span></div>
+        <div>override: <span class="text-ink">{{ overrides.DIARIZATION_MODEL_ID or '—' }}</span></div>
+        <div id="cache-diar" class="text-muted">{{ cache_line('diarization', overrides.DIARIZATION_MODEL_ID, diar_choices) }}</div>
+      </div>
+
+      {# Sentiment — note: label set differs between 2-class and 3-class heads #}
+      <label class="col-span-2 text-sm font-medium">Text Sentiment</label>
+      <select id="sel-sent" name="SENTIMENT_MODEL_ID"
+              class="col-span-5 bg-card border border-rule-soft rounded px-2 py-1 mono">
+        <option value="">(no override — use env default)</option>
+        {% for m in sent_choices %}
+          {% set st = (cache.sentiment or {}).get(m) or {} %}
+          <option value="{{ m }}" {% if overrides.SENTIMENT_MODEL_ID == m %}selected{% endif %}>
+            {{ m }}{% if st.cached %} ✓{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="col-span-5 text-xs mono space-y-0.5">
+        <div>live: <span class="text-ink">{{ live('sentiment') }}</span></div>
+        <div>override: <span class="text-ink">{{ overrides.SENTIMENT_MODEL_ID or '—' }}</span></div>
+        <div id="cache-sent" class="text-muted">{{ cache_line('sentiment', overrides.SENTIMENT_MODEL_ID, sent_choices) }}</div>
+        <div class="text-amber-600">⚠ 2-class heads (distilbert-sst-2) lose the neutral class downstream</div>
+      </div>
+
+      {# SER #}
+      <label class="col-span-2 text-sm font-medium">Audio emotion</label>
+      <select id="sel-ser" name="SER_MODEL_ID"
+              class="col-span-5 bg-card border border-rule-soft rounded px-2 py-1 mono">
+        <option value="">(no override — use env default)</option>
+        {% for m in ser_choices %}
+          {% set st = (cache.ser or {}).get(m) or {} %}
+          <option value="{{ m }}" {% if overrides.SER_MODEL_ID == m %}selected{% endif %}>
+            {{ m }}{% if st.cached %} ✓{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="col-span-5 text-xs mono space-y-0.5">
+        <div>live: <span class="text-ink">{{ live('ser') }}</span></div>
+        <div>override: <span class="text-ink">{{ overrides.SER_MODEL_ID or '—' }}</span></div>
+        <div id="cache-ser" class="text-muted">{{ cache_line('ser', overrides.SER_MODEL_ID, ser_choices) }}</div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Ollama models ──────────────────────────────────────────────────── #}
+  <div class="card p-5">
+    <h2 class="text-lg font-semibold mb-1">Ollama models <span class="text-xs text-muted font-normal">— hot-swap, no restart</span></h2>
+    <p class="text-xs text-muted mb-4">Picked up on the next /scorecard request. Only options marked <span class="text-emerald-600">✓ installed</span> will work — the ones without need a manual pull (use the box at the bottom).</p>
+
+    <div class="grid grid-cols-12 gap-4 items-center">
+
+      <label class="col-span-2 text-sm font-medium">LLM (KPI + coaching)</label>
+      <select name="LLM_MODEL_ID"
+              class="col-span-5 bg-card border border-rule-soft rounded px-2 py-1 mono">
+        <option value="">(no override — use env default)</option>
+        {% for m in llm_choices %}
+          <option value="{{ m }}" {% if overrides.LLM_MODEL_ID == m %}selected{% endif %}>
+            {{ m }}{% if m in ollama_installed %} ✓ installed{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="col-span-5 text-xs mono space-y-0.5">
+        <div>live: <span class="text-ink">{{ live('llm') }}</span></div>
+        <div>override: <span class="text-ink">{{ overrides.LLM_MODEL_ID or '—' }}</span></div>
+      </div>
+
+      <label class="col-span-2 text-sm font-medium">Embedding</label>
+      <select name="EMBEDDING_MODEL_ID"
+              class="col-span-5 bg-card border border-rule-soft rounded px-2 py-1 mono">
+        <option value="">(no override — use env default)</option>
+        {% for m in embed_choices %}
+          <option value="{{ m }}" {% if overrides.EMBEDDING_MODEL_ID == m %}selected{% endif %}>
+            {{ m }}{% if m in ollama_installed %} ✓ installed{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="col-span-5 text-xs mono space-y-0.5">
+        <div>live: <span class="text-ink">{{ live('embedding') }}</span></div>
+        <div>override: <span class="text-ink">{{ overrides.EMBEDDING_MODEL_ID or '—' }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card p-5">
+    <h2 class="text-lg font-semibold mb-1">Opening LLM relabel <span class="text-xs text-muted font-normal">— hot-swap, no restart</span></h2>
+    <p class="text-xs text-muted mb-4">DiarizationLM-style fix for the opening speaker mislabel: the LLM reads the first ~60&nbsp;s and decides which diarized speaker is the closer/client. Picked up on the next /scorecard request. Defaults to the KPI model (0&nbsp;extra&nbsp;VRAM).</p>
+
+    <div class="grid grid-cols-12 gap-4 items-center">
+
+      <label class="col-span-2 text-sm font-medium">Enabled</label>
+      <select name="OPENING_RELABEL_ENABLED"
+              class="col-span-5 bg-card border border-rule-soft rounded px-2 py-1 mono">
+        <option value="" {% if not overrides.OPENING_RELABEL_ENABLED %}selected{% endif %}>(env default — off)</option>
+        <option value="1" {% if overrides.OPENING_RELABEL_ENABLED == "1" %}selected{% endif %}>on</option>
+        <option value="0" {% if overrides.OPENING_RELABEL_ENABLED == "0" %}selected{% endif %}>off</option>
+      </select>
+      <div class="col-span-5 text-xs mono space-y-0.5">
+        <div>override: <span class="text-ink">{{ overrides.OPENING_RELABEL_ENABLED or '—' }}</span></div>
+      </div>
+
+      <label class="col-span-2 text-sm font-medium">Relabel model</label>
+      <select name="OPENING_RELABEL_MODEL"
+              class="col-span-5 bg-card border border-rule-soft rounded px-2 py-1 mono">
+        <option value="">(no override — use KPI model)</option>
+        {% for m in llm_choices %}
+          <option value="{{ m }}" {% if overrides.OPENING_RELABEL_MODEL == m %}selected{% endif %}>
+            {{ m }}{% if m in ollama_installed %} ✓ installed{% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div class="col-span-5 text-xs mono space-y-0.5">
+        <div>override: <span class="text-ink">{{ overrides.OPENING_RELABEL_MODEL or '—' }}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-3 flex-wrap">
+    <button class="btn btn-primary" id="apply-btn">Apply</button>
+    <span id="apply-status" class="text-xs text-muted"></span>
+    <span class="text-xs text-muted ml-auto">Empty selection = remove that override and fall back to the env default.</span>
+  </div>
+</form>
+
+{# ── Ad-hoc Ollama pull ─────────────────────────────────────────────────── #}
+<div class="card p-5 mt-4">
+  <h2 class="text-lg font-semibold mb-1">Pull an Ollama model</h2>
+  <p class="text-xs text-muted mb-3">
+    Examples: <span class="mono">qwen2.5:14b-instruct-q4_K_M</span>,
+    <span class="mono">llama3.1:8b-instruct-q4_K_M</span>,
+    <span class="mono">nomic-embed-text</span>.
+    The pull runs against the local Ollama instance and saves into the <span class="mono">ollama_storage</span> volume.
+  </p>
+  <div class="flex items-center gap-3 flex-wrap">
+    <input id="pull-name" type="text" placeholder="model:tag"
+           class="bg-card border border-rule-soft rounded px-3 py-1.5 text-sm mono flex-1 min-w-[260px]" />
+    <button id="pull-btn" class="btn btn-primary">⤓ Pull</button>
+    <button id="pull-cancel" class="btn btn-ghost" style="display:none">cancel</button>
+  </div>
+
+  <div id="pull-area" class="mt-3" style="display:none">
+    <div class="flex items-baseline justify-between text-[11px] uppercase tracking-wide text-muted mb-1">
+      <span id="pull-phase">starting…</span>
+      <span id="pull-detail" class="mono tabular-nums"></span>
+    </div>
+    <div class="progress"><div id="pull-bar" class="bar" style="width:0%"></div></div>
+    <pre id="pull-log" class="mt-2 text-[11px] mono text-muted max-h-[180px] overflow-auto whitespace-pre-wrap"></pre>
+  </div>
+</div>
+
+{% if overrides %}
+  <details class="mt-5">
+    <summary class="cursor-pointer text-sm text-muted">current runtime overrides (raw JSON)</summary>
+    <pre class="card p-3 mt-2 text-xs mono overflow-auto">{{ overrides | tojson(indent=2) }}</pre>
+  </details>
+{% endif %}
+
+<script>
+  // ── Models form: Apply via fetch, show feedback instead of full submit ──
+  (function () {
+    const form    = document.getElementById('models-form');
+    const btn     = document.getElementById('apply-btn');
+    const status  = document.getElementById('apply-status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      btn.disabled = true;
+      const oldLabel = btn.textContent;
+      btn.textContent = 'Applying…';
+      status.textContent = 'writing overrides + asking ser-api to hot-swap…';
+      try {
+        const fd = new FormData(form);
+        const r = await fetch('/models', {method: 'POST', body: fd});
+        const data = await r.json();
+        if (!data.ok) {
+          status.textContent = '✗ ' + (data.error || 'apply failed');
+          showToast('✗ apply failed', 'err');
+          return;
+        }
+        const changed = data.changed || {};
+        const reloads = data.reload_results || {};
+        const parts = [];
+        Object.entries(changed).forEach(([k, v]) => {
+          if (k in reloads) {
+            const r = reloads[k];
+            if (r.ok) {
+              const swapped = r.swapped === false ? 'no-op' : `${r.load_sec || 0}s`;
+              parts.push(`${k}=${v ?? '(unset)'} (${swapped})`);
+            } else {
+              parts.push(`${k}=${v ?? '(unset)'} ✗ ${r.error || r.detail || 'failed'}`);
+            }
+          } else {
+            // Ollama keys — hot-swap on next request, no reload call.
+            parts.push(`${k}=${v ?? '(unset)'} (active next request)`);
+          }
+        });
+        const msg = parts.length ? parts.join(' · ') : 'no changes';
+        status.textContent = '✓ ' + msg;
+        showToast('✓ models updated', 'ok');
+      } catch (err) {
+        status.textContent = '✗ ' + err;
+        showToast('✗ ' + err, 'err');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = oldLabel;
+      }
+    });
+  })();
+
+  // ── Ollama pull: stream /ollama/pull as Server-Sent Events ──────────────
+  (function () {
+    const nameInp   = document.getElementById('pull-name');
+    const btn       = document.getElementById('pull-btn');
+    const cancelBtn = document.getElementById('pull-cancel');
+    const area      = document.getElementById('pull-area');
+    const phase     = document.getElementById('pull-phase');
+    const detail    = document.getElementById('pull-detail');
+    const bar       = document.getElementById('pull-bar');
+    const log       = document.getElementById('pull-log');
+
+    let controller = null;
+
+    function fmtBytes(n) {
+      if (!n) return '';
+      if (n < 1024) return n + ' B';
+      if (n < 1048576) return (n/1024).toFixed(0) + ' KB';
+      if (n < 1073741824) return (n/1048576).toFixed(0) + ' MB';
+      return (n/1073741824).toFixed(2) + ' GB';
+    }
+
+    btn.addEventListener('click', async () => {
+      const name = (nameInp.value || '').trim();
+      if (!name) { showToast('enter a model name', 'err'); return; }
+      area.style.display = '';
+      phase.textContent  = 'starting…';
+      detail.textContent = '';
+      bar.style.width    = '0%';
+      log.textContent    = '';
+      btn.disabled = true;
+      cancelBtn.style.display = '';
+
+      controller = new AbortController();
+      try {
+        const fd = new FormData();
+        fd.append('name', name);
+        const r = await fetch('/ollama/pull',
+          {method: 'POST', body: fd, signal: controller.signal});
+        if (!r.body) throw new Error('no body in pull response');
+        const reader  = r.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+        while (true) {
+          const {value, done} = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, {stream: true});
+          // SSE frames are separated by blank lines.
+          let idx;
+          while ((idx = buf.indexOf('\n\n')) !== -1) {
+            const frame = buf.slice(0, idx);
+            buf = buf.slice(idx + 2);
+            // Each frame: lines like "data: {...}" / "event: end"
+            let dataLine = null, isEnd = false;
+            for (const line of frame.split('\n')) {
+              if (line.startsWith('data:')) dataLine = line.slice(5).trim();
+              else if (line.startsWith('event:') && line.includes('end')) isEnd = true;
+            }
+            if (isEnd) continue;
+            if (!dataLine) continue;
+            try {
+              const evt = JSON.parse(dataLine);
+              if (evt.phase) phase.textContent = evt.phase + (evt.status ? ' · ' + evt.status : '');
+              if (evt.percent != null) bar.style.width = evt.percent + '%';
+              if (evt.completed != null && evt.total != null) {
+                detail.textContent = `${fmtBytes(evt.completed)} / ${fmtBytes(evt.total)} · ${(evt.percent || 0).toFixed(1)}%`;
+              } else {
+                detail.textContent = '';
+              }
+              if (evt.error) {
+                log.textContent += '\nERROR: ' + evt.error;
+                phase.textContent = '✗ error';
+                showToast('✗ pull failed: ' + evt.error, 'err');
+              } else if (evt.status) {
+                log.textContent += '\n' + evt.status;
+                log.scrollTop = log.scrollHeight;
+              }
+              if (evt.phase === 'done') {
+                bar.style.width = '100%';
+                phase.textContent = '✓ pulled';
+                showToast('✓ ' + name + ' pulled', 'ok');
+                // Reload page after a beat so the installed-list updates.
+                setTimeout(() => location.reload(), 1200);
+              }
+            } catch (e) { /* skip malformed frame */ }
+          }
+        }
+      } catch (e) {
+        if (e.name !== 'AbortError') {
+          log.textContent += '\nclient error: ' + e;
+          showToast('✗ ' + e, 'err');
+        }
+      } finally {
+        btn.disabled = false;
+        cancelBtn.style.display = 'none';
+        controller = null;
+      }
+    });
+
+    cancelBtn.addEventListener('click', () => {
+      if (controller) controller.abort();
+    });
+  })();
+</script>
+
+{% endblock %}

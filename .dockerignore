@@ -1,0 +1,31 @@
+# Build-context exclusions for root-context services (call-analysis-api, rag-api).
+.git
+**/__pycache__
+**/*.pyc
+
+# Large media + sample audio (never needed in any image)
+*.mp4
+*.mp3
+*.wav
+*.webm
+audio/
+
+# Runtime data + rendered artefacts
+data/
+runtime/
+
+# Docs + images, not shipped
+docs/
+*.pdf
+*.png
+*.PNG
+
+# Throwaway JSON dumps
+_*.json
+shared/_*.json
+shared/workflows*.json
+
+# Other services' source (each root-context Dockerfile copies only what it needs)
+ORCA_UI_SER_CONTROL/
+n8n/
+postgres/

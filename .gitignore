@@ -1,0 +1,37 @@
+# Secrets — copy .env.example to .env and fill in HF_TOKEN.
+.env
+
+# Local-only compose override (cache-volume reuse on the dev box).
+docker-compose.override.yml
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Runtime override file written by orca-ui-ser-control — host state, not source.
+runtime/overrides.json
+
+# ── Runtime / generated artefacts ──────────────────────────────────────
+# Rendered PDFs/HTML reports, dashboard PNGs — all regenerated on demand.
+data/*
+!data/.gitkeep
+
+# Raw input audio (drop your own calls here; real calls contain PII and
+# must never be committed).
+audio/*
+!audio/.gitkeep
+
+# Loose workflow snapshots from n8n CLI export/import sessions. The
+# canonical bundled workflow lives at n8n/demo-data/workflows/.
+shared/workflows*.json
+shared/_*
+
+# Local media / scratch
+*.mp4
+*.mp3
+*.wav
+
+# Claude Code tooling — agent state, not source.
+.claude/

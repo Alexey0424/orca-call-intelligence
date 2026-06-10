@@ -1,0 +1,47 @@
+{# Service-health card — polled by HTMX every few seconds. #}
+{% set health  = container.health or '—' %}
+{% set ok_h   = (ser_health or {}).get('ok') %}
+{% set models = (ser_health or {}).get('models') or {} %}
+
+<div class="card p-4 mb-5 grid grid-cols-12 gap-4">
+  <div class="col-span-3">
+    <div class="text-[11px] uppercase tracking-wide text-muted">ser-api</div>
+    <div class="text-lg font-semibold mt-0.5 flex items-center gap-2">
+      {% if health == 'healthy' %}
+        <span class="dot bg-emerald-500"></span> healthy
+      {% elif health == 'starting' %}
+        <span class="dot bg-amber-500"></span> starting
+      {% elif health == 'unhealthy' %}
+        <span class="dot bg-rose-500"></span> unhealthy
+      {% else %}
+        <span class="dot bg-slate-400"></span> {{ container.status or '—' }}
+      {% endif %}
+    </div>
+    <div class="text-xs text-muted mono mt-1">
+      <span data-sb="health">{{ health }}</span>
+      <span data-sb="state" class="hidden">{{ health }}</span>
+    </div>
+  </div>
+  <div class="col-span-3">
+    <div class="text-[11px] uppercase tracking-wide text-muted">uptime</div>
+    <div class="text-sm mt-0.5 mono" data-sb="uptime">{{ container.started_at|fmt_uptime }}</div>
+    <div class="text-xs text-muted mono mt-1">started {{ container.started_at|fmt_ts }}</div>
+  </div>
+  <div class="col-span-3">
+    <div class="text-[11px] uppercase tracking-wide text-muted">image</div>
+    <div class="text-sm mt-0.5 mono break-all">{{ container.image or '—' }}</div>
+    <div class="text-xs text-muted mono mt-1">restarts: {{ container.restart_count or 0 }}</div>
+  </div>
+  <div class="col-span-3">
+    <div class="text-[11px] uppercase tracking-wide text-muted">live models</div>
+    {% if ok_h %}
+      <ul class="text-xs mono mt-0.5 text-ink leading-5">
+        <li><span class="text-muted">asr</span> · {{ models.asr|default('—', true)|short_model }}</li>
+        <li><span class="text-muted">llm</span> · {{ models.llm|default('—', true)|short_model }}</li>
+        <li><span class="text-muted">emb</span> · {{ models.embedding|default('—', true)|short_model }}</li>
+      </ul>
+    {% else %}
+      <div class="text-xs text-rose-500 mono">/health unreachable</div>
+    {% endif %}
+  </div>
+</div>

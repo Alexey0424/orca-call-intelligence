@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en" class="h-full" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>ORCA_UI_SER_CONTROL{% block title_suffix %}{% endblock %}</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/htmx.org@1.9.12"></script>
+<script>
+  // Read persisted theme BEFORE the page renders to prevent a flash.
+  (function () {
+    try {
+      const t = localStorage.getItem('orca_theme') || 'light';
+      document.documentElement.dataset.theme = t;
+    } catch (e) {}
+  })();
+</script>
+<style>
+  /* ────────────── Theme tokens ────────────── */
+  :root,
+  [data-theme="light"] {
+    --paper:    #F5F0E6;   /* page background */
+    --ink:      #1B1B1F;   /* primary text */
+    --rule:     #2A2A2F;   /* lines / strong borders */
+    --rule-soft:#E5E0D5;   /* card borders */
+    --card:     #FFFFFF;
+    --card-alt: #FAF7EF;
+    --thead:    #EDE8DC;
+    --sidebar:  #EFE9DC;
+    --accent:   #C2410C;
+    --accent-fg:#FFFFFF;
+    --muted:    #6E695E;
+    --row-hover:#F2EDE0;
+    --bubble-closer-bg:    #FFF6E5;
+    --bubble-closer-edge:  #F3E2BC;
+    --bubble-client-bg:    #EEF4FF;
+    --bubble-client-edge:  #CFE0FF;
+  }
+  [data-theme="dark"] {
+    --paper:    #0E0F12;
+    --ink:      #E7E1D2;
+    --rule:     #3A3942;
+    --rule-soft:#2A2830;
+    --card:     #18191D;
+    --card-alt: #1F2026;
+    --thead:    #20212A;
+    --sidebar:  #131418;
+    --accent:   #F77042;
+    --accent-fg:#0E0F12;
+    --muted:    #8B8576;
+    --row-hover:#23232B;
+    --bubble-closer-bg:    #2A2418;
+    --bubble-closer-edge:  #4A3E20;
+    --bubble-client-bg:    #1A2030;
+    --bubble-client-edge:  #2C3858;
+  }
+
+  body { background: var(--paper); color: var(--ink); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  .mono { font-family: ui-monospace, SFMono-Regular, "Cascadia Mono", Menlo, Consolas, monospace; }
+
+  .card { background: var(--card); border: 1px solid var(--rule-soft); border-radius: 12px; color: var(--ink); }
+  .bg-card     { background: var(--card); }
+  .bg-card-alt { background: var(--card-alt); }
+  .bg-sidebar  { background: var(--sidebar); }
+  .bg-paper    { background: var(--paper); }
+  .bg-ink      { background: var(--ink); }
+  .bg-accent   { background: var(--accent); }
+  .bg-thead    { background: var(--thead); }
+  .bg-bubble-closer { background: var(--bubble-closer-bg); border-color: var(--bubble-closer-edge); }
+  .bg-bubble-client { background: var(--bubble-client-bg); border-color: var(--bubble-client-edge); }
+
+  .text-ink    { color: var(--ink); }
+  .text-paper  { color: var(--paper); }
+  .text-accent { color: var(--accent); }
+  .text-rule   { color: var(--rule); }
+  .text-muted  { color: var(--muted); }
+  .opacity-60.text-muted { color: var(--muted); opacity: 1; }
+
+  .border-rule      { border-color: var(--rule); }
+  .border-rule-soft { border-color: var(--rule-soft); }
+
+  .row-hover:hover td { background: var(--row-hover); }
+
+  .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: .4rem; padding: .45rem .75rem; border-radius: 8px;
+         font-size: .82rem; font-weight: 500; line-height: 1;
+         transition: transform 80ms ease, background 120ms ease, opacity 120ms ease, box-shadow 120ms ease;
+         border: 1px solid transparent; cursor: pointer; user-select: none; }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); }
+  .btn-primary:hover:not(:disabled) { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .btn-ghost   { background: var(--card); color: var(--ink); border-color: var(--rule-soft); }
+  .btn-ghost:hover:not(:disabled) { background: var(--card-alt); }
+  .btn-danger  { background: #E11D48; color: #fff; }
+  .btn-danger:hover:not(:disabled) { background: #BE123C; }
+
+  .nav-link { display: flex; align-items: center; gap: .55rem; padding: .55rem .75rem; border-radius: 8px; color: var(--muted);
+              transition: background 120ms ease, color 120ms ease; position: relative; }
+  .nav-link:hover { background: var(--card-alt); color: var(--ink); }
+  .nav-link.active { background: var(--ink); color: var(--paper); }
+  .nav-link.active:hover { background: var(--ink); color: var(--paper); }
+  .nav-link.active::before { content: ''; position: absolute; left: -16px; top: 6px; bottom: 6px; width: 3px; border-radius: 3px; background: var(--accent); }
+
+  table.tight th, table.tight td { padding: .5rem .65rem; }
+  .stripe tr:nth-child(even) td { background: var(--card-alt); }
+  .dot { display:inline-block; width:.5rem; height:.5rem; border-radius:999px; vertical-align:middle; }
+
+  /* Progress bar */
+  .progress { position: relative; height: 6px; border-radius: 999px; background: var(--card-alt); overflow: hidden; border: 1px solid var(--rule-soft); }
+  .progress > .bar { position: absolute; top: 0; bottom: 0; left: 0; background: var(--accent); transition: width 600ms cubic-bezier(.2,.8,.2,1); }
+
+  /* Drop zone */
+  .dropzone { transition: background 150ms ease, border-color 150ms ease, transform 150ms ease; }
+  .dropzone.is-drag { background: color-mix(in srgb, var(--accent) 14%, var(--card-alt)); border-color: var(--accent); transform: scale(1.005); }
+
+  /* Toast stack */
+  #toast-stack { position: fixed; right: 1.25rem; bottom: 1.25rem; display: flex; flex-direction: column; gap: .5rem; z-index: 9999; pointer-events: none; }
+  .toast { background: var(--ink); color: var(--paper); padding: .55rem .85rem; border-radius: 8px; font-size: .82rem; box-shadow: 0 10px 30px rgba(0,0,0,.18); pointer-events: auto;
+           opacity: 0; transform: translateY(8px); transition: opacity 160ms ease, transform 160ms ease; min-width: 200px; max-width: 360px; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+  .toast.toast-ok  { border-left: 3px solid #10B981; }
+  .toast.toast-err { border-left: 3px solid #E11D48; }
+  .toast.toast-info{ border-left: 3px solid var(--accent); }
+</style>
+</head>
+<body class="h-full">
+<div class="min-h-full flex">
+  <!-- ── Sidebar ───────────────────────────────────────────────────────── -->
+  <aside class="w-60 shrink-0 border-r border-rule-soft bg-sidebar px-4 py-5 flex flex-col">
+    <div class="flex items-center gap-2 mb-6">
+      <div class="w-9 h-9 grid place-items-center rounded-lg bg-ink text-paper font-bold">O</div>
+      <div>
+        <div class="font-semibold leading-tight">ORCA</div>
+        <div class="text-xs text-muted leading-tight mono">SER · control</div>
+      </div>
+      <button id="theme-toggle"
+              title="Toggle dark / light theme"
+              class="ml-auto w-7 h-7 grid place-items-center rounded text-sm hover:bg-card-alt transition-colors">
+        <span data-show="light">🌙</span><span data-show="dark" style="display:none">☀</span>
+      </button>
+    </div>
+    <nav class="flex flex-col gap-1">
+      <a href="/"         class="nav-link {% if active == 'status' %}active{% endif %}">⚡  Control Panel</a>
+      <a href="/models"   class="nav-link {% if active == 'models' %}active{% endif %}">🎛  Models</a>
+      <a href="/calls"    class="nav-link {% if active == 'calls' %}active{% endif %}">📞  Calls</a>
+      <a href="/db"       class="nav-link {% if active == 'database' %}active{% endif %}">🗄  Database</a>
+    </nav>
+    <div class="mt-auto text-[11px] text-muted mono space-y-0.5">
+      <div class="flex items-center gap-1.5">
+        <span id="sb-dot" class="dot bg-slate-400"></span>
+        <span>ser-api: <span id="sb-health">…</span></span>
+      </div>
+      <div>uptime: <span id="sb-uptime">—</span></div>
+    </div>
+  </aside>
+
+  <!-- ── Main column ───────────────────────────────────────────────────── -->
+  <main class="flex-1 px-8 py-6">
+    {% block body %}{% endblock %}
+  </main>
+</div>
+
+<!-- Toast stack -->
+<div id="toast-stack"></div>
+
+<script>
+  // ── Theme toggle ──────────────────────────────────────────────────────
+  (function () {
+    const root = document.documentElement;
+    const btn  = document.getElementById('theme-toggle');
+    function apply() {
+      const t = root.dataset.theme;
+      document.querySelectorAll('[data-show]').forEach(el => {
+        el.style.display = (el.dataset.show === t) ? '' : 'none';
+      });
+    }
+    apply();
+    btn.addEventListener('click', () => {
+      const next = (root.dataset.theme === 'dark') ? 'light' : 'dark';
+      root.dataset.theme = next;
+      try { localStorage.setItem('orca_theme', next); } catch (e) {}
+      apply();
+    });
+  })();
+
+  // ── Sidebar refresher (health + uptime + status dot) ──────────────────
+  async function refreshSidebar() {
+    try {
+      const r = await fetch('/_partial/service', {cache: 'no-store'});
+      if (!r.ok) return;
+      const html = await r.text();
+      const m = document.createElement('div'); m.innerHTML = html;
+      const health = m.querySelector('[data-sb=health]')?.textContent?.trim();
+      const uptime = m.querySelector('[data-sb=uptime]')?.textContent?.trim();
+      const state  = (m.querySelector('[data-sb=state]')?.textContent || '').trim();
+      if (health) document.getElementById('sb-health').textContent = health;
+      if (uptime) document.getElementById('sb-uptime').textContent = uptime;
+      const dot = document.getElementById('sb-dot');
+      dot.className = 'dot ' + ({
+        'healthy':   'bg-emerald-500',
+        'starting':  'bg-amber-500',
+        'unhealthy': 'bg-rose-500',
+      }[state] || 'bg-slate-400');
+    } catch (e) {}
+  }
+  refreshSidebar();
+  setInterval(refreshSidebar, 4000);
+
+  // ── Global toast helper ───────────────────────────────────────────────
+  window.showToast = function (msg, kind /* 'ok' | 'err' | 'info' */) {
+    const stack = document.getElementById('toast-stack');
+    const el = document.createElement('div');
+    el.className = 'toast toast-' + (kind || 'info');
+    el.textContent = msg;
+    stack.appendChild(el);
+    // Animate in
+    requestAnimationFrame(() => el.classList.add('show'));
+    setTimeout(() => {
+      el.classList.remove('show');
+      setTimeout(() => el.remove(), 200);
+    }, 2800);
+  };
+</script>
+</body>
+</html>

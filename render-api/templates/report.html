@@ -1,0 +1,291 @@
+{# ─────────────────────────────────────────────────────────────────────────── #}
+{#  Executive Call Report (v6 — editorial)                                     #}
+{#                                                                              #}
+{#  Hierarchy:                                                                  #}
+{#    1 — Cover  (masthead, title, verdict, risk + coaching, stat strip,        #}
+{#                highlights)                                                   #}
+{#    2 — Conversation Dynamics                                                 #}
+{#    3 — Sentiment & Engagement Timeline                                       #}
+{#    4 — Performance Breakdown                                                 #}
+{#    5 — Emotion Profile + Phase Strip                                         #}
+{#    6 — Coaching Notes  (numbered recs + pull quote)                          #}
+{#    7 — Conversation Transcript                                               #}
+{#    8 — Operational Metadata                                                  #}
+{#                                                                              #}
+{#  All inbound Jinja variables (executive.*, summary.*, pal.*, risk_color,     #}
+{#  asset_url, variance_table, transcript_turns, meta_items, render_id) are     #}
+{#  consumed exactly as in v5 — no upstream changes required.                   #}
+{# ─────────────────────────────────────────────────────────────────────────── #}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>{{ executive.report_title|e }}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300;0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400;1,6..72,500&family=Manrope:wght@400;500;600;700;800&display=swap');
+    :root {
+      --paper:    #F5F0E6;
+      --card:     #FBF7EF;
+      --ink:      #1A1915;
+      --ink-2:    #5B564D;
+      --ink-3:    #8C857A;
+      --rule:     #D9D2C4;
+      --rule-soft:#E8E2D3;
+      --accent:   {{ pal.accent }};
+      --pos:      #3B6B4A;
+      --neg:      #A23B30;
+      --warn:     #C08838;
+      --closer:   #6E8A6B;
+      --closer-d: #2E4A36;
+      --client:   #9A7B4C;
+      --client-d: #5C4628;
+    }
+    {{ stylesheet|safe }}
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  {# ── 1 · COVER ─────────────────────────────────────────────────────── #}
+  <div class="cover">
+    <div class="edge-rule"></div>
+
+    <div class="masthead">
+      <span>{{ executive.company_name|e }}</span>
+      <span class="dot">·</span>
+      <span>Executive Call Review</span>
+      <span class="confidential">Confidential</span>
+    </div>
+
+    <h1 class="cover-title">Executive Call Report</h1>
+
+    <div class="cover-meta">
+      <b>{{ executive.file_name|e }}</b>
+      &nbsp;·&nbsp; Call ID&nbsp;<b>{{ executive.call_id|e }}</b>
+      &nbsp;·&nbsp; Generated&nbsp;<b>{{ executive.generated_at|e }}</b>
+    </div>
+
+    <div class="verdict">{{ executive.verdict|e }}</div>
+
+    <div class="kpi-row">
+      <div class="kpi-cell">
+        <div class="kpi-label">Risk Level</div>
+        <div class="risk-value">
+          <span class="lvl-{{ executive.risk_level|lower|e }}">{{ executive.risk_level|capitalize|e }}</span>
+        </div>
+        <div class="risk-sub">Composite signal from objections, interruptions, silence, and client sentiment trajectory.</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-label">Coaching Score</div>
+        <div class="coach-row">
+          <span class="coach-num tabular">{{ executive.coaching_score }}<span class="of100">/ 100</span></span>
+          <span class="coach-grade grade-{{ executive.coaching_grade|lower }}">{{ executive.coaching_grade|e }}</span>
+        </div>
+        <div class="coach-bar"><div class="coach-fill" style="width: {{ executive.coaching_score }}%;"></div></div>
+      </div>
+    </div>
+
+    <div class="stat-strip">
+      {% for tile in executive.hero_tiles %}
+      <div class="stat tone-{{ tile.tone|e }}">
+        <div class="stat-k">{{ tile.label|e }}</div>
+        <div class="stat-v">{{ tile.value|e }}</div>
+        {% if tile.hint %}<div class="stat-h">{{ tile.hint|e }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if executive.highlights %}
+    <div class="highlights">
+      <div class="highlights-title">Highlights</div>
+      {% for h in executive.highlights %}
+      <div class="highlight kind-{{ h.kind|e }}">
+        <span class="hl-tag"></span>
+        <span class="hl-time">{{ h.time_human|e }}</span>
+        <span class="hl-kind">{{ h.kind|replace('_', ' ')|e }}</span>
+        <span class="hl-text">&ldquo;{{ h.text|e }}&rdquo;</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── 2 · COACHING NOTES ────────────────────────────────────────────── #}
+  <div class="section page-break">
+    <div class="sec-hdr">
+      <span class="ch-num">02</span>
+      <h2>Coaching Notes</h2>
+    </div>
+    <p class="key-take">
+      <b>{{ executive.recommendations|length }}</b> coaching priorities, ranked from highest impact.
+      Score breakdown shown below.
+    </p>
+
+    {% if executive.coaching_breakdown %}
+    <div class="break-chips">
+      {% for b in executive.coaching_breakdown if b.factor != 'base' %}
+      <span class="break-chip {% if b.delta > 0 %}delta-pos{% else %}delta-neg{% endif %}">
+        {{ b.factor|replace('_',' ')|e }} {% if b.delta > 0 %}+{{ b.delta }}{% else %}{{ b.delta }}{% endif %}
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="rec-cards">
+      {% for r in executive.recommendations %}
+      <div class="rec-card prio-{{ r.priority|e }}">
+        <div class="rec-num">{{ '%02d'|format(loop.index) }}</div>
+        <div class="rec-head">{{ r.headline|e }}</div>
+        <div class="rec-body">{{ r.rationale|e }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% if executive.pull_quote %}
+    <div class="pullquote pq-{{ executive.pull_quote.kind|e }}">
+      <div class="pq-meta">{{ executive.pull_quote.kind|replace('_',' ')|e }} &nbsp;·&nbsp; {{ executive.pull_quote.time_human|e }}</div>
+      <div class="pq-text">{{ executive.pull_quote.text|e }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  {# ── 3 · CONVERSATION DYNAMICS ─────────────────────────────────────── #}
+  <div class="section page-break">
+    <div class="sec-hdr">
+      <span class="ch-num">03</span>
+      <h2>Conversation Dynamics</h2>
+    </div>
+    <p class="key-take">
+      {{ summary.closer_talk_pct|round(0)|int }}% of audible time was the closer;
+      <b>{{ summary.silence_pct|round(0)|int }}%</b> silence,
+      <b>{{ summary.overlap_pct|round(0)|int }}%</b> overlap;
+      <b>{{ summary.interruptions }}</b> interruptions logged.
+    </p>
+    {# Stacked instead of side-by-side: talk_share is near-square (290×220)
+       and conversation_flow is a wide banner (540×110). Forcing equal-width
+       cells left a tall column next to a short one with visible empty
+       borders. Stacking lets each chart breathe at its native aspect. #}
+    <div class="chart-narrow">
+      <img src="{{ asset_url('talk_share') }}" alt="Talk share"/>
+    </div>
+    <div class="chart-full" style="margin-top: 14px;">
+      <img src="{{ asset_url('conversation_flow') }}" alt="Conversation flow"/>
+    </div>
+  </div>
+
+  {# ── 4 · SENTIMENT TIMELINE ────────────────────────────────────────── #}
+  <div class="section page-break">
+    <div class="sec-hdr">
+      <span class="ch-num">04</span>
+      <h2>Sentiment &amp; Engagement Timeline</h2>
+    </div>
+    <p class="key-take">
+      Closer trajectory: <b>{{ summary.closer_sentiment_trajectory or 'n/a' }}</b>;
+      client trajectory: <b>{{ summary.client_sentiment_trajectory or 'n/a' }}</b>.
+      Objection and buying-signal markers are inline on the arc.
+    </p>
+    <div class="chart-full">
+      <img src="{{ asset_url('sentiment_timeline') }}" alt="Sentiment timeline"/>
+    </div>
+  </div>
+
+  {# ── 5 · PERFORMANCE BREAKDOWN ─────────────────────────────────────── #}
+  <div class="section page-break">
+    <div class="sec-hdr">
+      <span class="ch-num">05</span>
+      <h2>Performance Breakdown</h2>
+    </div>
+    <p class="key-take">
+      Closer at <b>{{ summary.closer_wpm or 'n/a' }}</b> WPM versus client at
+      <b>{{ summary.client_wpm or 'n/a' }}</b>.
+      Delta values report closer minus client.
+    </p>
+    <div class="chart-full">
+      <img src="{{ asset_url('role_metrics') }}" alt="Role metrics"/>
+    </div>
+    <div class="role-table">
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th><th>Talk</th><th>WPM</th><th>Words</th>
+            <th>Questions</th><th>Fillers</th><th>Sentiment</th><th>Emotion</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in executive.role_rows %}
+          <tr>{% for cell in row %}<td>{{ cell|e }}</td>{% endfor %}</tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {{ variance_table|safe }}
+  </div>
+
+  {# ── 6 · EMOTION PROFILE ───────────────────────────────────────────── #}
+  <div class="section page-break">
+    <div class="sec-hdr">
+      <span class="ch-num">06</span>
+      <h2>Emotion Profile</h2>
+    </div>
+    <p class="key-take">
+      Closer dominant emotion: <b>{{ summary.closer_dominant_emotion or 'n/a' }}</b>;
+      client dominant emotion: <b>{{ summary.client_dominant_emotion or 'n/a' }}</b>.
+    </p>
+    <div class="chart-full">
+      <img src="{{ asset_url('emotion_profile') }}" alt="Top emotions"/>
+    </div>
+    <div class="chart-full" style="margin-top: 14px;">
+      <img src="{{ asset_url('phase_strip') }}" alt="Emotional arc by phase"/>
+    </div>
+  </div>
+
+  {# ── 7 · TRANSCRIPT ────────────────────────────────────────────────── #}
+  <div class="section page-break">
+    <div class="sec-hdr">
+      <span class="ch-num">07</span>
+      <h2>Conversation Transcript</h2>
+    </div>
+    <p class="key-take">
+      Each turn is colour-keyed by role and sentiment along the leading rule.
+      The trio of pills shows per-segment positive, neutral, and negative confidence.
+    </p>
+    <div class="transcript">
+      {% for turn in transcript_turns %}
+        <div class="turn {{ turn.bubble_class }} sent-{{ turn.sent_class }}">
+          <div class="turn-hdr">
+            <b>{{ turn.speaker_label|e }}</b>
+            <span class="ts">{{ turn.timestamp|e }}{{ turn.emotion_suffix|e }}</span>
+            <span class="pill-row">{{ turn.pills_html|safe }}</span>
+          </div>
+          <div class="turn-txt">{{ turn.text|e }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {# ── 8 · OPERATIONAL METADATA ──────────────────────────────────────── #}
+  <div class="section page-break">
+    <div class="sec-hdr">
+      <span class="ch-num">08</span>
+      <h2>Operational Metadata</h2>
+    </div>
+    <div class="meta-grid">
+      {% for key, value in meta_items %}
+      <div class="meta-item">
+        <div class="mk">{{ key|e }}</div>
+        <div class="mv">{{ value|e }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    <p class="render-tag">Render ID &nbsp;·&nbsp; {{ render_id|e }}</p>
+    <p class="render-tag">Pair this report with the raw scorecard JSON when auditing model output.</p>
+  </div>
+
+  {# The brand/date/CONFIDENTIAL footer is printed on every page by the
+     @page {bottom-left} rule in report.css. A body <footer> here used to
+     print a second copy on the last page only. #}
+
+</div>
+</body>
+</html>

@@ -1,0 +1,26 @@
+# ─── ser-api-render  v4.0  ────────────────────────────────────────────────────
+# PDF engine: WeasyPrint (HTML-first, single source of truth for HTML and PDF)
+# Charts:     pure SVG strings, written to disk and embedded by URL
+# Templates:  Jinja2
+# Web:        FastAPI + Uvicorn
+# ──────────────────────────────────────────────────────────────────────────────
+
+# ── Web framework ─────────────────────────────────────────────────────────────
+fastapi>=0.111.0
+uvicorn[standard]>=0.29.0
+pydantic>=2
+
+# ── Templating ────────────────────────────────────────────────────────────────
+jinja2>=3.1
+
+# ── PDF rendering (replaces reportlab) ────────────────────────────────────────
+# Requires system libs: Cairo, Pango, GDK-PixBuf, libffi
+weasyprint>=61.0
+
+# ── Tests (kept tiny; pytest is the only dev dep) ─────────────────────────────
+pytest>=7
+
+# ── REMOVED in v4 ─────────────────────────────────────────────────────────────
+# matplotlib  — replaced by pure-SVG sentiment timeline (charts/sentiment_timeline.py)
+# scipy       — replaced by a tiny boxcar smoother in charts/sentiment_timeline.py
+# numpy       — no longer needed (chart maths are stdlib only)
