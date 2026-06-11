@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 import httpx
 
@@ -40,11 +41,12 @@ def _render_dashboard_html(view_model: Dict[str, Any]) -> str:
         raise RuntimeError(
             f"render-api returned no html_url (body={body!r})"
         )
-    # render-api advertises PUBLIC_BASE_URL as the host-facing port.
-    # Rewrite so Gotenberg can resolve it inside the docker network.
-    html_url = (html_url
-                .replace("http://localhost:8010",  config.SER_RENDER_URL)
-                .replace("http://127.0.0.1:8010",  config.SER_RENDER_URL))
+    # render-api advertises PUBLIC_BASE_URL (a browser-facing host:port).
+    # Swap that base for the service-network URL so Gotenberg can resolve
+    # it inside the docker network — works for any PUBLIC_BASE_URL.
+    u = urlparse(html_url)
+    html_url = (config.SER_RENDER_URL.rstrip("/") + u.path
+                + (f"?{u.query}" if u.query else ""))
     return html_url
 
 

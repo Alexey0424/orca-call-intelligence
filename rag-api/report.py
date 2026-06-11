@@ -53,23 +53,26 @@ def _url_to_local_path(url: Optional[str]) -> Optional[str]:
 
 def _cached_urls(call_id: str) -> Dict[str, Any]:
     """Cache probe. ``{"_not_found": True}`` if no such call; ``{cached: True,
-    pdf_url, html_url}`` if already rendered AND the file is still on disk;
-    ``{}`` if a (re)render is needed."""
+    pdf_url, html_url, …}`` if already rendered AND the file is still on disk;
+    just the call metadata (summary/received_at) if a (re)render is needed."""
     conn = db.connect()
     try:
         with conn.cursor() as cur:
-            cur.execute("SELECT pdf_url, html_url FROM calls WHERE call_id = %s",
+            cur.execute("SELECT pdf_url, html_url, summary, received_at "
+                        "FROM calls WHERE call_id = %s",
                         (call_id,))
             row = cur.fetchone()
     finally:
         conn.close()
     if row is None:
         return {"_not_found": True}
-    pdf_url, html_url = row
+    pdf_url, html_url, summary, received_at = row
+    meta = {"summary": summary,
+            "received_at": received_at.isoformat() if received_at else None}
     local = _url_to_local_path(pdf_url)
     if pdf_url and local and os.path.exists(local):
-        return {"pdf_url": pdf_url, "html_url": html_url, "cached": True}
-    return {}
+        return {**meta, "pdf_url": pdf_url, "html_url": html_url, "cached": True}
+    return meta
 
 
 def _persist_urls(call_id: str, pdf_url: Optional[str], html_url: Optional[str]) -> None:
@@ -185,12 +188,18 @@ def _build_render_payload(call_id: str) -> Optional[Dict[str, Any]]:
 
 
 def get_or_render(call_id: str) -> Dict[str, Any]:
-    """Return the report URLs for a call, rendering + caching on first request."""
+    """Return the report URLs for a call, rendering + caching on first request.
+
+    The response carries ``summary``/``received_at`` alongside the URLs so a
+    chat agent can answer from this one call (orca-wa and the bundled n8n
+    workflow both use it as their ``get_call_report`` tool)."""
     cached = _cached_urls(call_id)
     if cached.get("_not_found"):
         return {"ok": False, "error": f"call_id_not_found: {call_id}"}
+    meta = {"summary": cached.get("summary"),
+            "received_at": cached.get("received_at")}
     if cached.get("cached"):
-        return {"ok": True, "cached": True,
+        return {"ok": True, "cached": True, **meta,
                 "pdf_url": cached["pdf_url"], "html_url": cached["html_url"]}
 
     payload = _build_render_payload(call_id)
@@ -213,4 +222,5 @@ def get_or_render(call_id: str) -> Dict[str, Any]:
     _persist_urls(call_id, pdf_url, html_url)
     logger.info("report_rendered call_id=%s pdf=%s utterances=%d",
                 call_id, bool(pdf_url), len(payload["utterances"]))
-    return {"ok": True, "cached": False, "pdf_url": pdf_url, "html_url": html_url}
+    return {"ok": True, "cached": False, **meta,
+            "pdf_url": pdf_url, "html_url": html_url}

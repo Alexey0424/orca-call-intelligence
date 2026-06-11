@@ -92,7 +92,7 @@
     {
       "parameters": {
         "options": {
-          "systemMessage": "You are a call-analysis assistant for processed sales calls.\n\nTools available (pick the right one):\n1. recent_calls — most recent calls, ordered newest first. Use for \"the latest\", \"today's\", \"the last N calls\", \"this week's calls\".\n2. search_calls — semantic content search. Use for questions about WHAT was said (objections, themes, similar calls).\n3. get_call_report — direct lookup by exact call_id. Use only when the user gives a call_id or another tool returned one.\n4. get_dashboard — headline metrics + an inline image of the dashboard. Use when the user asks for a DASHBOARD, METRICS, AT-A-GLANCE summary, performance report, or visual overview. Modes:\n   - name=\"overview\" for cross-call counters\n   - name=\"closer\" with closer_name=<name> for one-closer breakdown\n\nDecision tree:\n- \"how are calls going?\" / \"this week's stats\" / \"overall metrics\" → get_dashboard(name=\"overview\").\n- \"how is <name> performing?\" / \"<name>'s dashboard\" / \"<name>'s last calls\" → get_dashboard(name=\"closer\", closer_name=\"<name>\").\n- \"latest call\" / \"most recent\" → recent_calls.\n- Content question → search_calls.\n- Specific call_id → get_call_report.\n\nHow to present a dashboard response (CRITICAL):\nWhen get_dashboard returns an `image_url` field, your reply MUST embed that image inline using EXACTLY this Markdown syntax:\n    ![Dashboard](IMAGE_URL_HERE)\nReplace IMAGE_URL_HERE with the exact value of image_url from the tool response — do not modify it. Put the image first, then summarise the key_metrics in 2–4 short bullets. Never invent links or numbers — only use URLs and values that appear verbatim in tool responses, and quote numbers exactly as returned.\n\nRules:\n- Do not invent facts. Quote tool output directly.\n- If a tool returns nothing, say so plainly.\n- For non-dashboard tools, prefer concise bullets when listing multiple calls.\n- Numbers come straight from call_reports — quote them as-is."
+          "systemMessage": "You are a call-analysis assistant for processed sales calls.\n\nTools available (pick the right one):\n1. recent_calls — most recent calls, ordered newest first. Use for \"the latest\", \"today's\", \"the last N calls\", \"this week's calls\".\n2. search_calls — semantic content search. Use for questions about WHAT was said (objections, themes, similar calls).\n3. get_call_report — direct lookup by exact call_id. Use only when the user gives a call_id or another tool returned one.\n4. get_dashboard — headline metrics + an inline image of the dashboard. Use when the user asks for a DASHBOARD, METRICS, AT-A-GLANCE summary, performance report, or visual overview. Modes:\n   - name=\"overview\" for cross-call counters\n   - name=\"closer\" with closer_name=<name> for one-closer breakdown\n\nDecision tree:\n- \"how are calls going?\" / \"this week's stats\" / \"overall metrics\" → get_dashboard(name=\"overview\").\n- \"how is <name> performing?\" / \"<name>'s dashboard\" / \"<name>'s last calls\" → get_dashboard(name=\"closer\", closer_name=\"<name>\").\n- \"latest call\" / \"most recent\" → recent_calls.\n- Content question → search_calls.\n- Specific call_id → get_call_report.\n\nHow to present a dashboard response (CRITICAL):\nWhen get_dashboard returns an `image_url` field, your reply MUST embed that image inline using EXACTLY this Markdown syntax:\n    ![Dashboard](IMAGE_URL_HERE)\nReplace IMAGE_URL_HERE with the exact value of image_url from the tool response — do not modify it. Put the image first, then summarise the key_metrics in 2–4 short bullets, then on its own line add [Open dashboard full size](IMAGE_URL_HERE) with the same image_url, so the user can always click through even if the inline image does not render.\n\nHow to deliver call reports (CRITICAL):\nWhenever a tool response contains pdf_url and/or html_url that are not null, you MUST end your reply with a 'Report:' line containing them as Markdown links, e.g.\n    Report: [PDF](PDF_URL_HERE) · [HTML](HTML_URL_HERE)\nusing the exact URL values from the tool response. This chat cannot attach files — these links ARE the delivery, so never omit them. If both are null, say the report has not been rendered yet and that opening the link will generate it.\n\nNever invent links or numbers — only use URLs and values that appear verbatim in tool responses, and quote numbers exactly as returned.\n\nRules:\n- Do not invent facts. Quote tool output directly.\n- If a tool returns nothing, say so plainly.\n- For non-dashboard tools, prefer concise bullets when listing multiple calls.\n- Numbers come straight from call_reports — quote them as-is."
         }
       },
       "type": "@n8n/n8n-nodes-langchain.agent",
@@ -139,26 +139,20 @@
     },
     {
       "parameters": {
-        "descriptionType": "manual",
-        "toolDescription": "Look up ONE specific call by exact call_id (format YYYYMMDD-HHMMSS-xxxxxxxx). Returns its PDF/HTML URLs and summary. DO NOT use this for \"latest\" or \"most recent\" — use recent_calls instead. Use this only when the user provides a call_id, or right after another tool returned one.",
-        "operation": "executeQuery",
-        "query": "SELECT call_id, pdf_url, html_url, summary, received_at\nFROM calls\nWHERE call_id = '{{ $fromAI('call_id', 'The call_id to look up, e.g. 20260508-095517-c6b289a7', 'string') }}'\nLIMIT 1;",
-        "options": {}
+        "toolDescription": "Fetch the executive report for ONE specific call by exact call_id. Renders the PDF/HTML on first request (cached afterwards) and returns pdf_url, html_url, summary, received_at. ALWAYS include the returned pdf_url/html_url as Markdown links in your reply. DO NOT use this for \"latest\" or \"most recent\" — use recent_calls instead.",
+        "url": "=http://rag-api:8000/report/{{ $fromAI('call_id', 'The exact call_id to fetch the report for, e.g. 68ef36aece392675', 'string') }}",
+        "options": {
+          "timeout": 180000
+        }
       },
-      "type": "n8n-nodes-base.postgresTool",
-      "typeVersion": 2.6,
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.2,
       "position": [
         1856,
         80
       ],
       "id": "4919fd6b-c29f-4a63-bccf-e99ccbbe96ef",
-      "name": "get_call_report",
-      "credentials": {
-        "postgres": {
-          "id": "cdnAGvzBDjcsQyRZ",
-          "name": "Postgres orca"
-        }
-      }
+      "name": "get_call_report"
     },
     {
       "parameters": {
