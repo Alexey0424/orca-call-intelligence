@@ -1,5 +1,14 @@
 # ORCA — Self-Hosted Sales-Call Intelligence
 
+![Python](https://img.shields.io/badge/Python-3.11%20%7C%203.12-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-5%20services-009688?logo=fastapi&logoColor=white)
+![PyTorch](https://img.shields.io/badge/PyTorch-CUDA%2012.8-EE4C2C?logo=pytorch&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector%20HNSW-4169E1?logo=postgresql&logoColor=white)
+![Ollama](https://img.shields.io/badge/Ollama-local%20LLMs-000000?logo=ollama&logoColor=white)
+![n8n](https://img.shields.io/badge/n8n-RAG%20chat%20agent-EA4B71?logo=n8n&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-compose%20up-2496ED?logo=docker&logoColor=white)
+![License](https://img.shields.io/badge/License-Apache%202.0-D22128?logo=apache&logoColor=white)
+
 **Speech Emotion Recognition + RAG pipeline for sales calls. 100% local, GPU-accelerated, one `docker compose up`.**
 
 Drop a call recording in a folder → get back a fully analysed call: who spoke when, what they said, how they *felt* saying it, extracted KPIs, a coached scorecard, a branded PDF report, and a semantic search index you can chat with through an n8n RAG agent. No data ever leaves your machine.
