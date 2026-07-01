@@ -3,7 +3,7 @@
 The endpoint accepts a clean data contract (see ``DASHBOARD_SCHEMA`` below)
 and returns a static HTML page sized for a 1200px Gotenberg screenshot.
 
-Design source: Claude Design bundle ``orca-dashboards/project/Dashboard.html``.
+Design source: design bundle ``orca-dashboards/project/Dashboard.html``.
 All visual decisions (palette, typography, layout, micro-charts) come from
 that file; this module just computes the SVG geometry from real numbers and
 hands a flat view-model to Jinja2.

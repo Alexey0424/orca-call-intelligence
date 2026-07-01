@@ -149,7 +149,7 @@ def render_report(
 
 @app.post("/dashboard")
 def render_dashboard(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
-    """Render a Claude-design dashboard view-model to static HTML.
+    """Render a design dashboard view-model to static HTML.
 
     Accepts the dashboard data contract (kpis, calls_per_day, trio,
     leaderboard, recent_calls, …) and returns ``{ok, render_id, html_url,

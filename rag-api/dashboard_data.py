@@ -1,7 +1,7 @@
 """Build the render-api dashboard view-model from calls.
 
 Parameterised SQL against ``calls`` produces a clean JSON view-model that
-``render-api`` turns into a Claude-designed static HTML page; Gotenberg
+``render-api`` turns into a custom-designed static HTML page; Gotenberg
 then screenshots it to PNG for the chat-image path.
 
 The contract this module emits matches the field shapes documented in

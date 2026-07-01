@@ -5,7 +5,7 @@ The ``/dashboard.png`` endpoint pipes through this module:
   1. ``screenshot(name, closer_name, date_range)`` builds the view-model via
      :mod:`dashboard_data` (parameterised SQL against ``calls``).
   2. POSTs that view-model to ``render-api``'s ``/dashboard`` to receive
-     the URL of a static, Claude-designed HTML page.
+     the URL of a static, custom-designed HTML page.
   3. Calls Gotenberg's ``/forms/chromium/screenshot/url`` against that HTML
      to produce the final PNG bytes.
 """
@@ -52,7 +52,7 @@ def _render_dashboard_html(view_model: Dict[str, Any]) -> str:
 
 def screenshot(name: str, closer_name: Optional[str] = None,
                date_range: str = "7d") -> bytes:
-    """Render the Claude-design dashboard and return PNG bytes.
+    """Render the design dashboard and return PNG bytes.
 
     ``name='overview'`` selects the team scope; ``name='closer'`` (with
     ``closer_name``) selects a single closer. ``date_range`` is one of

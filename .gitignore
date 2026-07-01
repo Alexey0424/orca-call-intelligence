@@ -33,5 +33,5 @@ shared/_*
 *.mp3
 *.wav
 
-# Claude Code tooling — agent state, not source.
+# Local editor/agent tooling state — not source.
 .claude/
