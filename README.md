@@ -9,7 +9,7 @@
 ![Docker](https://img.shields.io/badge/Docker-compose%20up-2496ED?logo=docker&logoColor=white)
 ![License](https://img.shields.io/badge/License-Apache%202.0-D22128?logo=apache&logoColor=white)
 <p align="center">
-  <img src="assets/hero.jpg" alt="A little orca with a call-center headset turns a phone call's waveform into emotion readings and a printed scorecard, all on one padlocked local machine" width="100%">
+  <img src="assets/hero.gif" alt="A little orca with a call-center headset turns a phone call's waveform into emotion readings and a printed scorecard, all on one padlocked local machine" width="100%">
 </p>
 
 **Speech Emotion Recognition + RAG pipeline for sales calls. 100% local, GPU-accelerated, one `docker compose up`.**
